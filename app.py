@@ -10,6 +10,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    import models
 
 #Route
     @app.route("/")                          
