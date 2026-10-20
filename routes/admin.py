@@ -2,8 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, g, abort
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from forms.admin import CategoryForm
-from models import Category
+from forms.admin import CategoryForm, ProductForm
+from models import Category, Product
 from utils import slug_unik
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -71,3 +71,76 @@ def kategori_hapus(id):
 
     flash("Kategori dihapus.", "success")
     return redirect(url_for("admin.kategori_list"))
+
+def _isi_pilihan_kategori(form):
+    daftar = db.session.execute(
+        db.select(Category).order_by(Category.nama)
+    ).scalars().all()
+    form.category_id.choices = [(k.id, k.nama) for k in daftar]
+    return daftar
+
+
+@admin_bp.route("/produk")
+def produk_list():
+    daftar = db.session.execute(
+        db.select(Product).order_by(Product.created_at.desc())
+    ).scalars().all()
+    return render_template("admin/produk_list.html", daftar=daftar)
+
+
+@admin_bp.route("/produk/baru", methods=["GET", "POST"])
+def produk_baru():
+    form = ProductForm()
+    if not _isi_pilihan_kategori(form):
+        flash("Buat kategori terlebih dahulu.", "error")
+        return redirect(url_for("admin.kategori_baru"))
+
+    if form.validate_on_submit():
+        nama = form.nama.data.strip()
+        produk = Product(
+            nama=nama,
+            slug=slug_unik(Product, nama),
+            category_id=form.category_id.data,
+            deskripsi=(form.deskripsi.data or "").strip(),
+            harga=form.harga.data,
+            stock=form.stock.data,
+            is_active=form.is_active.data,
+        )
+        db.session.add(produk)
+        db.session.commit()
+        flash(f"Produk '{nama}' ditambahkan.", "success")
+        return redirect(url_for("admin.produk_list"))
+
+    return render_template("admin/produk_form.html", form=form, judul="Tambah Produk")
+
+
+@admin_bp.route("/produk/<int:id>/edit", methods=["GET", "POST"])
+def produk_edit(id):
+    produk = db.get_or_404(Product, id)
+    form = ProductForm(obj=produk)
+    _isi_pilihan_kategori(form)
+
+    if form.validate_on_submit():
+        nama = form.nama.data.strip()
+        produk.nama = nama
+        produk.slug = slug_unik(Product, nama, abaikan_id=produk.id)
+        produk.category_id = form.category_id.data
+        produk.deskripsi = (form.deskripsi.data or "").strip()
+        produk.harga = form.harga.data
+        produk.stock = form.stock.data
+        produk.is_active = form.is_active.data
+        db.session.commit()
+        flash("Produk diperbarui.", "success")
+        return redirect(url_for("admin.produk_list"))
+
+    return render_template("admin/produk_form.html", form=form, judul="Edit Produk")
+
+
+@admin_bp.route("/produk/<int:id>/status", methods=["POST"])
+def produk_status(id):
+    produk = db.get_or_404(Product, id)
+    produk.is_active = not produk.is_active
+    db.session.commit()
+    keadaan = "ditampilkan" if produk.is_active else "disembunyikan"
+    flash(f"Produk '{produk.nama}' {keadaan}.", "success")
+    return redirect(url_for("admin.produk_list"))

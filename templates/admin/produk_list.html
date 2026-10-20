@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Produk{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-bold">Produk</h1>
+  <a href="{{ url_for('admin.produk_baru') }}" class="bg-blue-600 text-white px-4 py-2 rounded">+ Tambah</a>
+</div>
+
+<table class="w-full bg-white rounded shadow text-sm">
+  <thead class="bg-gray-100 text-left">
+    <tr>
+      <th class="p-3">Nama</th>
+      <th class="p-3">Kategori</th>
+      <th class="p-3 text-right">Harga</th>
+      <th class="p-3 text-right">Stok</th>
+      <th class="p-3">Status</th>
+      <th class="p-3 text-right">Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for p in daftar %}
+    <tr class="border-t {{ 'text-gray-400' if not p.is_active }}">
+      <td class="p-3">{{ p.nama }}</td>
+      <td class="p-3">{{ p.category.nama }}</td>
+      <td class="p-3 text-right">{{ p.harga | rupiah }}</td>
+      <td class="p-3 text-right">{{ p.stock }}</td>
+      <td class="p-3">{{ 'Aktif' if p.is_active else 'Disembunyikan' }}</td>
+      <td class="p-3 text-right whitespace-nowrap">
+        <a href="{{ url_for('admin.produk_edit', id=p.id) }}" class="text-blue-600 mr-3">Edit</a>
+        <form method="post" action="{{ url_for('admin.produk_status', id=p.id) }}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="{{ 'text-red-600' if p.is_active else 'text-green-600' }}">
+            {{ 'Sembunyikan' if p.is_active else 'Tampilkan' }}
+          </button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="p-6 text-center text-gray-500">Belum ada produk.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -17,7 +17,12 @@ def create_app():
     app.cli.add_command(buat_admin)
     from routes.admin import admin_bp
     app.register_blueprint(admin_bp)
-#Route
+    
+    @app.template_filter("rupiah")
+    def format_rupiah(nilai):
+        return "Rp " + f"{nilai:,.0f}".replace(",", ".")
+    
+    #Routes
     @app.route("/")                          
     def index():
         return "Dimas Kontol"              

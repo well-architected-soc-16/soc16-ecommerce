@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ judul }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <h1 class="text-2xl font-bold mb-6">{{ judul }}</h1>
+  <form method="post" novalidate class="space-y-4 bg-white p-6 rounded shadow">
+    {{ form.hidden_tag() }}
+
+    {% for field in [form.nama, form.category_id, form.deskripsi, form.harga, form.stock] %}
+    <div>
+      {{ field.label(class="block text-sm font-medium mb-1") }}
+      {% if field.type == 'TextAreaField' %}
+        {{ field(class="w-full border rounded px-3 py-2", rows=4) }}
+      {% else %}
+        {{ field(class="w-full border rounded px-3 py-2") }}
+      {% endif %}
+      {% for err in field.errors %}
+        <p class="text-red-600 text-sm mt-1">{{ err }}</p>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <label class="flex items-center gap-2 text-sm">
+      {{ form.is_active() }} {{ form.is_active.label.text }}
+    </label>
+
+    <div class="flex gap-3">
+      {{ form.submit(class="bg-blue-600 text-white px-4 py-2 rounded") }}
+      <a href="{{ url_for('admin.produk_list') }}" class="px-4 py-2 border rounded">Batal</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

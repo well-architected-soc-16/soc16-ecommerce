@@ -14,7 +14,8 @@
       <div class="flex gap-4 items-center text-sm">
         {% if g.user %}
           {% if g.user.role == 'admin' %}
-            <a href="{{ url_for('admin.kategori_list') }}">Admin</a>
+            <a href="{{ url_for('admin.kategori_list') }}">Kategori</a>
+            <a href="{{ url_for('admin.produk_list') }}">Produk</a>
           {% endif %}
           <a href="{{ url_for('auth.profil') }}">{{ g.user.nama }}</a>
           <form method="post" action="{{ url_for('auth.logout') }}">
