@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Kategori{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-bold">Kategori</h1>
+  <a href="{{ url_for('admin.kategori_baru') }}" class="bg-blue-600 text-white px-4 py-2 rounded">+ Tambah</a>
+</div>
+
+<table class="w-full bg-white rounded shadow text-sm">
+  <thead class="bg-gray-100 text-left">
+    <tr>
+      <th class="p-3">Nama</th>
+      <th class="p-3">Slug</th>
+      <th class="p-3">Produk</th>
+      <th class="p-3 text-right">Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for k in daftar %}
+    <tr class="border-t">
+      <td class="p-3">{{ k.nama }}</td>
+      <td class="p-3 text-gray-500">{{ k.slug }}</td>
+      <td class="p-3">{{ k.products | length }}</td>
+      <td class="p-3 text-right">
+        <a href="{{ url_for('admin.kategori_edit', id=k.id) }}" class="text-blue-600 mr-3">Edit</a>
+        <form method="post" action="{{ url_for('admin.kategori_hapus', id=k.id) }}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="text-red-600">Hapus</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="p-6 text-center text-gray-500">Belum ada kategori.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ judul }}{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto">
+  <h1 class="text-2xl font-bold mb-6">{{ judul }}</h1>
+  <form method="post" novalidate class="space-y-4 bg-white p-6 rounded shadow">
+    {{ form.hidden_tag() }}
+    <div>
+      {{ form.nama.label(class="block text-sm font-medium mb-1") }}
+      {{ form.nama(class="w-full border rounded px-3 py-2") }}
+      {% for err in form.nama.errors %}
+        <p class="text-red-600 text-sm mt-1">{{ err }}</p>
+      {% endfor %}
+    </div>
+    <div class="flex gap-3">
+      {{ form.submit(class="bg-blue-600 text-white px-4 py-2 rounded") }}
+      <a href="{{ url_for('admin.kategori_list') }}" class="px-4 py-2 border rounded">Batal</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

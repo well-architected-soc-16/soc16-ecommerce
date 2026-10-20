@@ -15,6 +15,8 @@ def create_app():
     app.register_blueprint(auth_bp)
     from commands import buat_admin
     app.cli.add_command(buat_admin)
+    from routes.admin import admin_bp
+    app.register_blueprint(admin_bp)
 #Route
     @app.route("/")                          
     def index():
