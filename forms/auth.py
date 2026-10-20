@@ -19,3 +19,8 @@ class RegisterForm(FlaskForm):
         validators=[DataRequired(), EqualTo("password", message="Password tidak sama")],
     )
     submit = SubmitField("Daftar")
+
+class LoginForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    password = PasswordField("Password", validators=[DataRequired(), Length(max=128)])
+    submit = SubmitField("Masuk")
