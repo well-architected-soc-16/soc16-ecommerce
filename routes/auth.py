@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, flash, session, g
+from flask import Blueprint, render_template, redirect, url_for, flash, session, g, abort
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -122,3 +122,14 @@ def logout():
 @login_required
 def profil():
     return f"Halo {g.user.nama} ({g.user.email}) — role: {g.user.role}"
+
+def admin_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if g.user is None:
+            flash("Silakan login terlebih dahulu.", "error")
+            return redirect(url_for("auth.login"))
+        if g.user.role != "admin":
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapper
