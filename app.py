@@ -11,7 +11,8 @@ def create_app():
     migrate.init_app(app, db)
     csrf.init_app(app)
     import models
-
+    from routes.auth import auth_bp
+    app.register_blueprint(auth_bp)
 #Route
     @app.route("/")                          
     def index():
