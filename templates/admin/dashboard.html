@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Admin{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Dashboard Admin</h1>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+  {% for label, nilai, warna in [
+      ("Customer", stat.customer, "text-blue-600"),
+      ("Kategori", stat.kategori, "text-gray-800"),
+      ("Produk aktif", stat.produk_aktif, "text-green-600"),
+      ("Stok habis", stat.stok_habis, "text-red-600"),
+  ] %}
+    <div class="bg-white rounded shadow p-4">
+      <p class="text-sm text-gray-500">{{ label }}</p>
+      <p class="text-3xl font-bold {{ warna }}">{{ nilai }}</p>
+    </div>
+  {% endfor %}
+</div>
+
+<h2 class="text-lg font-bold mb-3">Menu</h2>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+  <a href="{{ url_for('admin.produk_list') }}" class="bg-white rounded shadow p-4 hover:bg-blue-50">
+    <p class="font-medium">Produk</p>
+    <p class="text-sm text-gray-500">Tambah, ubah, sembunyikan produk</p>
+  </a>
+  <a href="{{ url_for('admin.kategori_list') }}" class="bg-white rounded shadow p-4 hover:bg-blue-50">
+    <p class="font-medium">Kategori</p>
+    <p class="text-sm text-gray-500">Kelola kategori produk</p>
+  </a>
+  {% for nama in ["Pesanan", "Verifikasi Pembayaran", "Kelola User", "Audit Log"] %}
+    <div class="bg-gray-100 rounded p-4 text-gray-400">
+      <p class="font-medium">{{ nama }}</p>
+      <p class="text-sm">Segera hadir</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

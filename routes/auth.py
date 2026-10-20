@@ -35,6 +35,24 @@ def login_required(view):
     return wrapper
 
 
+def admin_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if g.user is None:
+            flash("Silakan login terlebih dahulu.", "error")
+            return redirect(url_for("auth.login"))
+        if g.user.role != "admin":
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def _halaman_awal(user):
+    if user.role == "admin":
+        return url_for("admin.dashboard")
+    return url_for("index")
+
+
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     form = RegisterForm()
@@ -69,7 +87,7 @@ def register():
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if g.user is not None:
-        return redirect(url_for("index"))
+        return redirect(_halaman_awal(g.user))
 
     form = LoginForm()
 
@@ -106,7 +124,7 @@ def login():
         session.clear()
         session["user_id"] = user.id
         flash(f"Selamat datang, {user.nama}.", "success")
-        return redirect(url_for("index"))
+        return redirect(_halaman_awal(user))
 
     return render_template("auth/login.html", form=form)
 
@@ -122,14 +140,3 @@ def logout():
 @login_required
 def profil():
     return f"Halo {g.user.nama} ({g.user.email}) — role: {g.user.role}"
-
-def admin_required(view):
-    @wraps(view)
-    def wrapper(*args, **kwargs):
-        if g.user is None:
-            flash("Silakan login terlebih dahulu.", "error")
-            return redirect(url_for("auth.login"))
-        if g.user.role != "admin":
-            abort(403)
-        return view(*args, **kwargs)
-    return wrapper

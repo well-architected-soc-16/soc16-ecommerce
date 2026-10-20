@@ -8,14 +8,14 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <nav class="bg-white shadow">
+  <nav class="bg-white shadow">
     <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
       <a href="{{ url_for('index') }}" class="font-bold">E-Commerce</a>
       <div class="flex gap-4 items-center text-sm">
+        <a href="{{ url_for('index') }}">Beranda</a>
         {% if g.user %}
           {% if g.user.role == 'admin' %}
-            <a href="{{ url_for('admin.kategori_list') }}">Kategori</a>
-            <a href="{{ url_for('admin.produk_list') }}">Produk</a>
+            <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
           {% endif %}
           <a href="{{ url_for('auth.profil') }}">{{ g.user.nama }}</a>
           <form method="post" action="{{ url_for('auth.logout') }}">

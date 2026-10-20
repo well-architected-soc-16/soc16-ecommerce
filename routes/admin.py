@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 
 from extensions import db
 from forms.admin import CategoryForm, ProductForm
-from models import Category, Product
+from models import Category, Product, User
 from utils import slug_unik
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -17,6 +17,20 @@ def wajib_admin():
     if g.user.role != "admin":
         abort(403)
 
+@admin_bp.route("/")
+def dashboard():
+    def hitung(query):
+        return db.session.scalar(query) or 0
+
+    stat = {
+        "customer": hitung(db.select(db.func.count(User.id)).where(User.role == "customer")),
+        "kategori": hitung(db.select(db.func.count(Category.id))),
+        "produk_aktif": hitung(db.select(db.func.count(Product.id)).where(Product.is_active.is_(True))),
+        "stok_habis": hitung(
+            db.select(db.func.count(Product.id)).where(Product.is_active.is_(True), Product.stock == 0)
+        ),
+    }
+    return render_template("admin/dashboard.html", stat=stat)
 
 @admin_bp.route("/kategori")
 def kategori_list():

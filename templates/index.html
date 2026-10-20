@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Beranda{% endblock %}
+{% block content %}
+<section class="bg-blue-600 text-white rounded-lg p-8 mb-8">
+  <h1 class="text-3xl font-bold mb-2">Selamat datang di E-Commerce</h1>
+  <p class="opacity-90">Belanja kebutuhanmu dengan aman.</p>
+  {% if not g.user %}
+    <div class="mt-4 flex gap-3">
+      <a href="{{ url_for('auth.register') }}" class="bg-white text-blue-600 px-4 py-2 rounded font-medium">Daftar</a>
+      <a href="{{ url_for('auth.login') }}" class="border border-white px-4 py-2 rounded">Masuk</a>
+    </div>
+  {% endif %}
+</section>
+
+<h2 class="text-xl font-bold mb-4">Produk Terbaru</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+  {% for p in produk %}
+    <div class="bg-white rounded shadow p-4 flex flex-col">
+      <div class="h-32 bg-gray-100 rounded mb-3 flex items-center justify-center text-gray-400 text-sm">
+        Belum ada gambar
+      </div>
+      <p class="text-xs text-gray-500">{{ p.category.nama }}</p>
+      <h3 class="font-medium">{{ p.nama }}</h3>
+      <p class="text-blue-600 font-bold mt-auto">{{ p.harga | rupiah }}</p>
+      <p class="text-xs {{ 'text-red-600' if p.stock == 0 else 'text-gray-500' }}">
+        {{ 'Stok habis' if p.stock == 0 else 'Stok ' ~ p.stock }}
+      </p>
+    </div>
+  {% else %}
+    <p class="col-span-full text-gray-500">Belum ada produk.</p>
+  {% endfor %}
+</div>
+{% endblock %}

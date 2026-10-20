@@ -19,7 +19,7 @@
       {% endfor %}
     </div>
     {% endfor %}
-
+<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-blue-600">&larr; Dashboard</a>
     <label class="flex items-center gap-2 text-sm">
       {{ form.is_active() }} {{ form.is_active.label.text }}
     </label>
