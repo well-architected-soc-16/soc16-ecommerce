@@ -225,3 +225,5 @@ __pycache__/
 .env.*
 !.env.example
 instance/
+.vscode/
+.vscode/
