@@ -227,3 +227,4 @@ __pycache__/
 instance/
 .vscode/
 .vscode/
+*:Zone.Identifier
