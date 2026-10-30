@@ -21,6 +21,9 @@ def create_app():
     from routes.admin import admin_bp
     app.register_blueprint(admin_bp)
 
+    from routes.shop import shop_bp
+    app.register_blueprint(shop_bp)
+
     from commands import buat_admin
     app.cli.add_command(buat_admin)
 
