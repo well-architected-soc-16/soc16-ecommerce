@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, g, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, g, abort, current_app
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from forms.admin import CategoryForm, ProductForm
+from forms.admin import CategoryForm, ProductForm, HapusProdukForm
 from models import Category, Product, User
 from utils import slug_unik
 
@@ -16,6 +16,7 @@ def wajib_admin():
         return redirect(url_for("auth.login"))
     if g.user.role != "admin":
         abort(403)
+
 
 @admin_bp.route("/")
 def dashboard():
@@ -31,6 +32,9 @@ def dashboard():
         ),
     }
     return render_template("admin/dashboard.html", stat=stat)
+
+
+# ---------- Kategori ----------
 
 @admin_bp.route("/kategori")
 def kategori_list():
@@ -85,6 +89,9 @@ def kategori_hapus(id):
 
     flash("Kategori dihapus.", "success")
     return redirect(url_for("admin.kategori_list"))
+
+
+# ---------- Produk ----------
 
 def _isi_pilihan_kategori(form):
     daftar = db.session.execute(
@@ -158,3 +165,43 @@ def produk_status(id):
     keadaan = "ditampilkan" if produk.is_active else "disembunyikan"
     flash(f"Produk '{produk.nama}' {keadaan}.", "success")
     return redirect(url_for("admin.produk_list"))
+
+
+@admin_bp.route("/produk/<int:id>/hapus", methods=["GET", "POST"])
+def produk_hapus(id):
+    produk = db.get_or_404(Product, id)
+
+    if produk.is_active:
+        flash("Sembunyikan produk terlebih dahulu sebelum menghapus permanen.", "error")
+        return redirect(url_for("admin.produk_list"))
+
+    # Diisi setelah tabel order_items tersedia (fitur checkout)
+    jumlah_pesanan = 0
+
+    form = HapusProdukForm()
+    if form.validate_on_submit():
+        if form.konfirmasi.data.strip() != produk.nama:
+            form.konfirmasi.errors.append("Nama produk tidak cocok.")
+        else:
+            nama = produk.nama
+            db.session.delete(produk)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash("Produk tidak bisa dihapus karena masih dirujuk data lain.", "error")
+                return redirect(url_for("admin.produk_list"))
+
+            # Sementara ke log aplikasi; nanti diganti catat("product_deleted", ...)
+            current_app.logger.warning(
+                "product_deleted id=%s nama=%r oleh=%s", id, nama, g.user.email
+            )
+            flash(f"Produk '{nama}' dihapus permanen.", "success")
+            return redirect(url_for("admin.produk_list"))
+
+    return render_template(
+        "admin/produk_hapus.html",
+        produk=produk,
+        form=form,
+        jumlah_pesanan=jumlah_pesanan,
+    )

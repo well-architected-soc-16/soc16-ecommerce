@@ -31,6 +31,7 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="{{ 'text-red-600' if p.is_active else 'text-green-600' }}">
             {{ 'Sembunyikan' if p.is_active else 'Tampilkan' }}
+             <a href="{{ url_for('admin.produk_hapus', id=p.id) }}" class="text-red-700 font-medium ml-3">Hapus permanen</a>
           </button>
         </form>
       </td>
