@@ -4,67 +4,95 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}E-Commerce{% endblock %}</title>
-  <script src="{{ url_for('static', filename='js/email-saran.js') }}" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: {
+        display: ['"Barlow Condensed"', 'Arial Narrow', 'sans-serif'],
+        sans: ['Barlow', 'Arial', 'sans-serif'],
+      } } }
+    }
+  </script>
+  <script src="{{ url_for('static', filename='js/email-saran.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
-  <nav class="bg-white shadow">
-    <div class="max-w-4xl mx-auto px-4 py-3 flex flex-wrap gap-3 justify-between items-center">
-      <a href="{{ url_for('index') }}" class="font-bold">E-Commerce</a>
+<body class="bg-white min-h-screen text-black font-sans">
 
-      <form method="get" action="{{ url_for('shop.katalog') }}" class="flex order-last w-full md:order-none md:w-auto">
-        <input type="search" name="q" maxlength="100" placeholder="Cari produk..."
-               value="{{ request.args.get('q', '') if request.endpoint == 'shop.katalog' else '' }}"
-               class="flex-1 md:w-56 border rounded-l px-3 py-1 text-sm">
-        <button class="bg-blue-600 text-white px-3 py-1 rounded-r text-sm">Cari</button>
+  <div class="bg-black text-white text-center text-xs md:text-sm font-display font-bold uppercase tracking-wider py-2 px-4">
+    Belanja aman &middot; pembayaran diverifikasi admin
+  </div>
+
+  <header class="sticky top-0 z-30 bg-white border-b border-neutral-200">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
+
+      <a href="{{ url_for('index') }}" class="shrink-0 font-display font-extrabold text-2xl uppercase tracking-tight leading-none" aria-label="Beranda">
+        E&#8209;Commerce
+      </a>
+
+      <form method="get" action="{{ url_for('index') }}" role="search"
+            class="order-last w-full md:order-none md:flex-1">
+        {% if request.endpoint == 'index' and request.args.get('kategori') %}
+          <input type="hidden" name="kategori" value="{{ request.args.get('kategori') }}">
+        {% endif %}
+        <label for="cari" class="sr-only">Cari produk</label>
+        <div class="flex items-center bg-neutral-100 border border-transparent focus-within:border-black">
+          <input id="cari" type="search" name="q" maxlength="100" placeholder="Cari"
+                 value="{{ request.args.get('q', '') if request.endpoint == 'index' else '' }}"
+                 class="flex-1 bg-transparent px-4 py-2.5 text-base outline-none">
+          <button class="px-4 py-2.5" aria-label="Cari">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+            </svg>
+          </button>
+        </div>
       </form>
 
-      <div class="flex gap-4 items-center text-sm">
-        <a href="{{ url_for('index') }}">Beranda</a>
-        <a href="{{ url_for('shop.katalog') }}">Katalog</a>
-
+      <div class="ml-auto md:ml-0 shrink-0">
         {% if g.user %}
           <details class="relative" id="menu-profil">
-            <summary class="list-none cursor-pointer flex items-center gap-2 select-none">
-              <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-                {{ g.user.nama[:1] | upper }}
-              </span>
-              <span class="hidden sm:inline">{{ g.user.nama }}</span>
-              <span class="text-gray-400">&#9662;</span>
+            <summary class="list-none cursor-pointer flex items-center gap-2 select-none p-1" aria-label="Menu akun">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-7 h-7" aria-hidden="true">
+                <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>
+              </svg>
+              <span class="hidden lg:inline text-sm font-medium max-w-[8rem] truncate">{{ g.user.nama }}</span>
             </summary>
-
-            <div class="absolute right-0 mt-2 w-56 bg-white rounded shadow-lg border z-20 py-2">
-              <div class="px-4 py-2 border-b">
-                <p class="font-medium truncate">{{ g.user.nama }}</p>
-                <p class="text-xs text-gray-500 truncate">{{ g.user.email }}</p>
+            <div class="absolute right-0 mt-2 w-64 bg-white border border-black py-2 text-sm">
+              <div class="px-4 py-2 border-b border-neutral-200">
+                <p class="font-display font-bold uppercase text-lg leading-tight truncate">{{ g.user.nama }}</p>
+                <p class="text-xs text-neutral-500 truncate">{{ g.user.email }}</p>
                 {% if g.user.role == 'admin' %}
-                  <span class="inline-block mt-1 text-xs bg-blue-100 text-blue-700 px-2 rounded">Admin</span>
+                  <span class="inline-block mt-1 text-[11px] bg-black text-white px-2 uppercase tracking-wider">Admin</span>
                 {% endif %}
               </div>
-
-              <a href="{{ url_for('auth.profil') }}" class="block px-4 py-2 hover:bg-gray-100">Profil saya</a>
+              <a href="{{ url_for('auth.profil') }}" class="block px-4 py-2 hover:underline">Profil saya</a>
               {% if g.user.role == 'admin' %}
-                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 hover:bg-gray-100">Dashboard admin</a>
+                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 hover:underline">Dashboard admin</a>
               {% endif %}
-
-              <form method="post" action="{{ url_for('auth.logout') }}" class="border-t mt-1 pt-1">
+              <form method="post" action="{{ url_for('auth.logout') }}" class="border-t border-neutral-200 mt-1 pt-1">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50">Keluar</button>
+                <button class="w-full text-left px-4 py-2 text-red-700 hover:underline">Keluar</button>
               </form>
             </div>
           </details>
         {% else %}
-          <a href="{{ url_for('auth.login') }}">Masuk</a>
-          <a href="{{ url_for('auth.register') }}" class="bg-blue-600 text-white px-3 py-1 rounded">Daftar</a>
+          <div class="flex items-center gap-4 text-sm font-medium">
+            <a href="{{ url_for('auth.login') }}" class="hover:underline">Masuk</a>
+            <a href="{{ url_for('auth.register') }}" class="bg-black text-white px-4 py-2 font-display font-bold uppercase tracking-wider hover:bg-neutral-800">Daftar</a>
+          </div>
         {% endif %}
       </div>
     </div>
-  </nav>
-  <main class="max-w-4xl mx-auto mt-8 px-4">
+  </header>
+
+  {% block hero %}{% endblock %}
+
+  <main class="max-w-7xl mx-auto px-4 py-8">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for kategori, pesan in messages %}
-        <div class="mb-4 p-3 rounded {{ 'bg-red-100 text-red-700' if kategori == 'error' else 'bg-green-100 text-green-700' }}">
+        <div class="mb-4 p-3 border-l-4 {{ 'border-red-600 bg-red-50 text-red-800' if kategori == 'error' else 'border-green-600 bg-green-50 text-green-800' }}">
           {{ pesan }}
         </div>
       {% endfor %}

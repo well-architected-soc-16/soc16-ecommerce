@@ -1,33 +1,77 @@
 {% extends "base.html" %}
-{% block title %}Beranda{% endblock %}
-{% block content %}
-<section class="bg-blue-600 text-white rounded-lg p-8 mb-8">
-  <h1 class="text-3xl font-bold mb-2">Selamat datang di E-Commerce</h1>
-  <p class="opacity-90">Belanja kebutuhanmu dengan aman.</p>
-  {% if not g.user %}
-    <div class="mt-4 flex gap-3">
-      <a href="{{ url_for('auth.register') }}" class="bg-white text-blue-600 px-4 py-2 rounded font-medium">Daftar</a>
-      <a href="{{ url_for('auth.login') }}" class="border border-white px-4 py-2 rounded">Masuk</a>
+{% block title %}{{ 'Cari: ' ~ q if q else 'Beranda' }}{% endblock %}
+
+{% block hero %}
+{% if not q and not kategori_aktif and halaman.page == 1 %}
+<section class="relative bg-neutral-900 bg-[url('/static/img/hero.jpg')] bg-cover bg-center">
+  <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" aria-hidden="true"></div>
+  <div class="relative max-w-7xl mx-auto px-4 min-h-[420px] md:min-h-[560px] flex items-end pb-12">
+    <div>
+      <h1 class="inline bg-white px-2 font-display font-extrabold text-3xl md:text-5xl uppercase tracking-wide leading-tight [box-decoration-break:clone]">
+        Koleksi terbaru
+      </h1>
+      <p class="mt-1 inline-block bg-white px-2 py-0.5 text-base md:text-lg">Harga jelas, pembayaran terverifikasi.</p>
+      <div class="mt-5">
+        <a href="#produk" class="inline-flex items-center gap-4 bg-white px-6 py-3 font-display font-bold uppercase tracking-wider text-lg shadow-[4px_4px_0_0_#fff] ring-1 ring-black hover:bg-neutral-100">
+          Belanja sekarang
+          <svg viewBox="0 0 32 12" fill="none" stroke="currentColor" stroke-width="1.6" class="w-8 h-3" aria-hidden="true">
+            <path d="M0 6h30M25 1l5 5-5 5"/>
+          </svg>
+        </a>
+      </div>
     </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<section id="produk" class="scroll-mt-28">
+  <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
+    <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">
+      {% if q %}Hasil: "{{ q }}"
+      {% elif kategori_aktif %}{{ kategori_aktif.nama }}
+      {% else %}Semua produk{% endif %}
+    </h2>
+    {% if q or kategori_aktif %}
+      <p class="text-sm text-neutral-600">
+        {{ halaman.total }} produk ·
+        <a href="{{ url_for('index') }}" class="underline">reset</a>
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="flex gap-2 mb-8 overflow-x-auto pb-1">
+    <a href="{{ url_for('index', q=q or None) }}"
+       class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if not kategori_aktif else 'hover:bg-neutral-100' }}">Semua</a>
+    {% for k in daftar_kategori %}
+      <a href="{{ url_for('index', kategori=k.slug, q=q or None) }}"
+         class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if kategori_aktif and kategori_aktif.id == k.id else 'hover:bg-neutral-100' }}">
+        {{ k.nama }}
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
+    {% for p in halaman.items %}
+      {% include "shop/_kartu.html" %}
+    {% else %}
+      <p class="col-span-full text-neutral-500 py-10 text-center">Produk tidak ditemukan.</p>
+    {% endfor %}
+  </div>
+
+  {% if halaman.pages > 1 %}
+  <nav class="flex justify-center items-center gap-2 mt-10" aria-label="Halaman">
+    {% if halaman.has_prev %}
+      <a href="{{ url_for('index', page=halaman.prev_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}#produk"
+         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100">&larr; Sebelumnya</a>
+    {% endif %}
+    <span class="px-3 py-2 text-neutral-600">{{ halaman.page }} / {{ halaman.pages }}</span>
+    {% if halaman.has_next %}
+      <a href="{{ url_for('index', page=halaman.next_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}#produk"
+         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100">Berikutnya &rarr;</a>
+    {% endif %}
+  </nav>
   {% endif %}
 </section>
-
-<h2 class="text-xl font-bold mb-4">Produk Terbaru</h2>
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-  {% for p in produk %}
-    <div class="bg-white rounded shadow p-4 flex flex-col">
-      <div class="h-32 bg-gray-100 rounded mb-3 flex items-center justify-center text-gray-400 text-sm">
-        Belum ada gambar
-      </div>
-      <p class="text-xs text-gray-500">{{ p.category.nama }}</p>
-      <h3 class="font-medium">{{ p.nama }}</h3>
-      <p class="text-blue-600 font-bold mt-auto">{{ p.harga | rupiah }}</p>
-      <p class="text-xs {{ 'text-red-600' if p.stock == 0 else 'text-gray-500' }}">
-        {{ 'Stok habis' if p.stock == 0 else 'Stok ' ~ p.stock }}
-      </p>
-    </div>
-  {% else %}
-    <p class="col-span-full text-gray-500">Belum ada produk.</p>
-  {% endfor %}
-</div>
 {% endblock %}
