@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, url_for
 
 from extensions import db
 from models import Category, Product
@@ -6,8 +6,7 @@ from models import Category, Product
 shop_bp = Blueprint("shop", __name__)
 
 
-@shop_bp.route("/produk")
-def katalog():
+def data_katalog():
     q = (request.args.get("q") or "").strip()[:100]
     kategori_slug = request.args.get("kategori") or ""
     page = request.args.get("page", 1, type=int)
@@ -32,13 +31,17 @@ def katalog():
         db.select(Category).order_by(Category.nama)
     ).scalars().all()
 
-    return render_template(
-        "shop/katalog.html",
-        halaman=halaman,
-        q=q,
-        kategori_aktif=kategori_aktif,
-        daftar_kategori=daftar_kategori,
-    )
+    return {
+        "halaman": halaman,
+        "q": q,
+        "kategori_aktif": kategori_aktif,
+        "daftar_kategori": daftar_kategori,
+    }
+
+
+@shop_bp.route("/produk")
+def katalog():
+    return redirect(url_for("index", **request.args.to_dict()))
 
 
 @shop_bp.route("/produk/<slug>")

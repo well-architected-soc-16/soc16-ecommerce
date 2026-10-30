@@ -33,12 +33,7 @@ def create_app():
 
     @app.route("/")
     def index():
-        produk = db.session.execute(
-            db.select(Product)
-            .where(Product.is_active.is_(True))
-            .order_by(Product.created_at.desc())
-            .limit(8)
-        ).scalars().all()
-        return render_template("index.html", produk=produk)
+        from routes.shop import data_katalog
+        return render_template("index.html", **data_katalog())
 
     return app
