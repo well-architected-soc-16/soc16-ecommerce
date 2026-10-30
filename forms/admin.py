@@ -26,3 +26,10 @@ class ProductForm(FlaskForm):
     )
     is_active = BooleanField("Tampilkan di katalog", default=True)
     submit = SubmitField("Simpan")
+
+class HapusProdukForm(FlaskForm):
+    konfirmasi = StringField(
+        "Ketik nama produk untuk konfirmasi",
+        validators=[DataRequired(), Length(max=200)],
+    )
+    submit = SubmitField("Hapus permanen")

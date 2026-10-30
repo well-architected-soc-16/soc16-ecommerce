@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ produk.nama }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('shop.katalog') }}" class="text-sm text-blue-600">&larr; Kembali ke katalog</a>
+
+<div class="grid md:grid-cols-2 gap-8 mt-4 bg-white rounded shadow p-6">
+  <div class="h-64 bg-gray-100 rounded flex items-center justify-center text-gray-400">
+    Belum ada gambar
+  </div>
+  <div class="flex flex-col gap-3">
+    <a href="{{ url_for('shop.katalog', kategori=produk.category.slug) }}"
+       class="text-sm text-gray-500 hover:text-blue-600">{{ produk.category.nama }}</a>
+    <h1 class="text-2xl font-bold">{{ produk.nama }}</h1>
+    <p class="text-3xl font-bold text-blue-600">{{ produk.harga | rupiah }}</p>
+    <p class="text-sm {{ 'text-red-600' if produk.stock == 0 else 'text-gray-600' }}">
+      {{ 'Stok habis' if produk.stock == 0 else 'Stok tersedia: ' ~ produk.stock }}
+    </p>
+    {% if produk.deskripsi %}
+      <div class="text-gray-700 whitespace-pre-line border-t pt-3">{{ produk.deskripsi }}</div>
+    {% endif %}
+    <button disabled class="mt-auto bg-gray-300 text-gray-600 py-2 rounded cursor-not-allowed">
+      Tambah ke keranjang (segera hadir)
+    </button>
+  </div>
+</div>
+{% endblock %}

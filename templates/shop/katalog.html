@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Cari: ' ~ q if q else 'Katalog' }}{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">
+  {% if q %}Hasil pencarian "{{ q }}"{% else %}Katalog Produk{% endif %}
+</h1>
+
+<div class="flex flex-wrap gap-2 mb-6 text-sm">
+  <a href="{{ url_for('shop.katalog', q=q or None) }}"
+     class="px-3 py-1 rounded-full border {{ 'bg-blue-600 text-white' if not kategori_aktif }}">Semua</a>
+  {% for k in daftar_kategori %}
+    <a href="{{ url_for('shop.katalog', kategori=k.slug, q=q or None) }}"
+       class="px-3 py-1 rounded-full border {{ 'bg-blue-600 text-white' if kategori_aktif and kategori_aktif.id == k.id }}">
+      {{ k.nama }}
+    </a>
+  {% endfor %}
+</div>
+
+{% if q %}
+  <p class="text-sm text-gray-600 mb-4">
+    {{ halaman.total }} produk ditemukan ·
+    <a href="{{ url_for('shop.katalog', kategori=kategori_aktif.slug if kategori_aktif else None) }}" class="text-blue-600">hapus pencarian</a>
+  </p>
+{% endif %}
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+  {% for p in halaman.items %}
+    {% include "shop/_kartu.html" %}
+  {% else %}
+    <p class="col-span-full text-gray-500">Produk tidak ditemukan.</p>
+  {% endfor %}
+</div>
+
+{% if halaman.pages > 1 %}
+<div class="flex justify-center gap-2 mt-8 text-sm">
+  {% if halaman.has_prev %}
+    <a href="{{ url_for('shop.katalog', page=halaman.prev_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}"
+       class="px-3 py-1 border rounded">&larr; Sebelumnya</a>
+  {% endif %}
+  <span class="px-3 py-1">Halaman {{ halaman.page }} dari {{ halaman.pages }}</span>
+  {% if halaman.has_next %}
+    <a href="{{ url_for('shop.katalog', page=halaman.next_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}"
+       class="px-3 py-1 border rounded">Berikutnya &rarr;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
