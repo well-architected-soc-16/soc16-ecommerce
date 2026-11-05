@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, g, abort, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, g, abort
 from sqlalchemy.exc import IntegrityError
 
+from audit import catat
 from extensions import db
 from forms.admin import CategoryForm, ProductForm, HapusProdukForm
 from models import Category, Product, User
@@ -52,6 +53,7 @@ def kategori_baru():
         kategori = Category(nama=nama, slug=slug_unik(Category, nama))
         db.session.add(kategori)
         db.session.commit()
+        catat("category_created", user=g.user, kategori_id=kategori.id, nama=nama)
         flash(f"Kategori '{nama}' ditambahkan.", "success")
         return redirect(url_for("admin.kategori_list"))
     return render_template("admin/kategori_form.html", form=form, judul="Tambah Kategori")
@@ -66,6 +68,7 @@ def kategori_edit(id):
         kategori.nama = nama
         kategori.slug = slug_unik(Category, nama, abaikan_id=kategori.id)
         db.session.commit()
+        catat("category_updated", user=g.user, kategori_id=kategori.id, nama=nama)
         flash("Kategori diperbarui.", "success")
         return redirect(url_for("admin.kategori_list"))
     return render_template("admin/kategori_form.html", form=form, judul="Edit Kategori")
@@ -79,6 +82,7 @@ def kategori_hapus(id):
         flash("Kategori masih dipakai produk, tidak bisa dihapus.", "error")
         return redirect(url_for("admin.kategori_list"))
 
+    kategori_id, nama = kategori.id, kategori.nama
     db.session.delete(kategori)
     try:
         db.session.commit()
@@ -87,6 +91,7 @@ def kategori_hapus(id):
         flash("Kategori masih dipakai produk, tidak bisa dihapus.", "error")
         return redirect(url_for("admin.kategori_list"))
 
+    catat("category_deleted", user=g.user, kategori_id=kategori_id, nama=nama)
     flash("Kategori dihapus.", "success")
     return redirect(url_for("admin.kategori_list"))
 
@@ -129,6 +134,7 @@ def produk_baru():
         )
         db.session.add(produk)
         db.session.commit()
+        catat("product_created", user=g.user, produk_id=produk.id, nama=nama)
         flash(f"Produk '{nama}' ditambahkan.", "success")
         return redirect(url_for("admin.produk_list"))
 
@@ -151,6 +157,7 @@ def produk_edit(id):
         produk.stock = form.stock.data
         produk.is_active = form.is_active.data
         db.session.commit()
+        catat("product_updated", user=g.user, produk_id=produk.id, nama=nama)
         flash("Produk diperbarui.", "success")
         return redirect(url_for("admin.produk_list"))
 
@@ -162,6 +169,10 @@ def produk_status(id):
     produk = db.get_or_404(Product, id)
     produk.is_active = not produk.is_active
     db.session.commit()
+    catat(
+        "product_shown" if produk.is_active else "product_hidden",
+        user=g.user, produk_id=produk.id, nama=produk.nama,
+    )
     keadaan = "ditampilkan" if produk.is_active else "disembunyikan"
     flash(f"Produk '{produk.nama}' {keadaan}.", "success")
     return redirect(url_for("admin.produk_list"))
@@ -192,10 +203,7 @@ def produk_hapus(id):
                 flash("Produk tidak bisa dihapus karena masih dirujuk data lain.", "error")
                 return redirect(url_for("admin.produk_list"))
 
-            # Sementara ke log aplikasi; nanti diganti catat("product_deleted", ...)
-            current_app.logger.warning(
-                "product_deleted id=%s nama=%r oleh=%s", id, nama, g.user.email
-            )
+            catat("product_deleted", user=g.user, produk_id=id, nama=nama)
             flash(f"Produk '{nama}' dihapus permanen.", "success")
             return redirect(url_for("admin.produk_list"))
 

@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, session,
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from audit import catat
 from extensions import db
 from forms.auth import RegisterForm, LoginForm
 from models import User
@@ -64,6 +65,7 @@ def register():
             db.select(User).filter_by(email=email)
         ).scalar_one_or_none()
         if sudah_ada:
+            catat("register_failed", email=email, reason="email_terdaftar")
             flash("Email sudah terdaftar.", "error")
             return render_template("auth/register.html", form=form)
 
@@ -75,9 +77,11 @@ def register():
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
+            catat("register_failed", email=email, reason="email_terdaftar")
             flash("Email sudah terdaftar.", "error")
             return render_template("auth/register.html", form=form)
 
+        catat("register", user=user)
         flash("Pendaftaran berhasil. Silakan login.", "success")
         return redirect(url_for("auth.login"))
 
@@ -98,6 +102,7 @@ def login():
         ).scalar_one_or_none()
 
         if user is not None and user.is_locked():
+            catat("login_failed", user=user, reason="akun_terkunci")
             flash("Terlalu banyak percobaan gagal. Coba lagi beberapa menit lagi.", "error")
             return render_template("auth/login.html", form=form)
 
@@ -108,12 +113,19 @@ def login():
             password_benar = user.check_password(form.password.data)
 
         if not password_benar or not user.is_active:
-            if user is not None:
+            if user is None:
+                catat("login_failed", email=email, reason="email_tidak_terdaftar")
+            else:
+                alasan = "akun_nonaktif" if password_benar else "password_salah"
                 user.failed_login_count += 1
-                if user.failed_login_count >= MAX_GAGAL:
+                terkunci = user.failed_login_count >= MAX_GAGAL
+                if terkunci:
                     user.locked_until = datetime.now(timezone.utc) + LAMA_KUNCI
                     user.failed_login_count = 0
                 db.session.commit()
+                catat("login_failed", user=user, reason=alasan)
+                if terkunci:
+                    catat("account_locked", user=user, menit=int(LAMA_KUNCI.total_seconds() // 60))
             flash("Email atau password salah.", "error")
             return render_template("auth/login.html", form=form)
 
@@ -123,6 +135,7 @@ def login():
 
         session.clear()
         session["user_id"] = user.id
+        catat("login_success", user=user)
         flash(f"Selamat datang, {user.nama}.", "success")
         return redirect(_halaman_awal(user))
 
@@ -131,6 +144,8 @@ def login():
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
+    if g.user is not None:
+        catat("logout", user=g.user)
     session.clear()
     flash("Anda sudah keluar.", "success")
     return redirect(url_for("auth.login"))
