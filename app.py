@@ -1,10 +1,9 @@
 from flask import Flask, render_template
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from audit import init_audit, WIB
 from config import Config
 from extensions import db, migrate, csrf
-from audit import init_audit
-
 
 
 def create_app():
@@ -37,6 +36,10 @@ def create_app():
     @app.template_filter("rupiah")
     def format_rupiah(nilai):
         return "Rp " + f"{nilai:,.0f}".replace(",", ".")
+
+    @app.template_filter("wib")
+    def format_wib(dt):
+        return dt.astimezone(WIB).strftime("%d-%m-%Y %H:%M:%S") if dt else "-"
 
     @app.route("/")
     def index():

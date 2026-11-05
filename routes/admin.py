@@ -1,10 +1,12 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, g, abort
+from datetime import datetime, timedelta, timezone
+
+from flask import Blueprint, render_template, redirect, url_for, flash, g, abort, request
 from sqlalchemy.exc import IntegrityError
 
-from audit import catat
+from audit import catat, WIB
 from extensions import db
 from forms.admin import CategoryForm, ProductForm, HapusProdukForm
-from models import Category, Product, User
+from models import Category, Product, User, AuditLog
 from utils import slug_unik
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -30,6 +32,12 @@ def dashboard():
         "produk_aktif": hitung(db.select(db.func.count(Product.id)).where(Product.is_active.is_(True))),
         "stok_habis": hitung(
             db.select(db.func.count(Product.id)).where(Product.is_active.is_(True), Product.stock == 0)
+        ),
+        "login_gagal_24j": hitung(
+            db.select(db.func.count(AuditLog.id)).where(
+                AuditLog.event == "login_failed",
+                AuditLog.created_at >= datetime.now(timezone.utc) - timedelta(hours=24),
+            )
         ),
     }
     return render_template("admin/dashboard.html", stat=stat)
@@ -212,4 +220,42 @@ def produk_hapus(id):
         produk=produk,
         form=form,
         jumlah_pesanan=jumlah_pesanan,
+    )
+
+# ---------- Audit log ----------
+
+@admin_bp.route("/audit-log")
+def audit_log():
+    event = (request.args.get("event") or "").strip()
+    tanggal = (request.args.get("tanggal") or "").strip()
+    page = request.args.get("page", 1, type=int)
+
+    query = db.select(AuditLog).order_by(AuditLog.created_at.desc())
+
+    if event:
+        query = query.where(AuditLog.event == event)
+
+    if tanggal:
+        try:
+            awal = datetime.strptime(tanggal, "%Y-%m-%d").replace(tzinfo=WIB)
+            query = query.where(
+                AuditLog.created_at >= awal,
+                AuditLog.created_at < awal + timedelta(days=1),
+            )
+        except ValueError:
+            flash("Format tanggal tidak valid.", "error")
+            tanggal = ""
+
+    halaman = db.paginate(query, page=page, per_page=50, error_out=False)
+
+    daftar_event = db.session.execute(
+        db.select(AuditLog.event).distinct().order_by(AuditLog.event)
+    ).scalars().all()
+
+    return render_template(
+        "admin/audit_log.html",
+        halaman=halaman,
+        event=event,
+        tanggal=tanggal,
+        daftar_event=daftar_event,
     )
