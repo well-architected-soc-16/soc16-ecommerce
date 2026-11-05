@@ -1,12 +1,19 @@
 from flask import Flask, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
 from extensions import db, migrate, csrf
+from audit import init_audit
+
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    if app.config["TRUST_PROXY"]:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+    init_audit(app)
 
     db.init_app(app)
     migrate.init_app(app, db)
