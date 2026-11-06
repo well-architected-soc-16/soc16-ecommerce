@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Audit Log{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-blue-600">&larr; Dashboard</a>
+<h1 class="text-2xl font-bold mt-2 mb-4">Audit Log</h1>
+
+<form method="get" class="flex flex-wrap gap-2 mb-4 text-sm">
+  <select name="event" class="border rounded px-3 py-2">
+    <option value="">Semua event</option>
+    {% for e in daftar_event %}
+      <option value="{{ e }}" {{ 'selected' if e == event }}>{{ e }}</option>
+    {% endfor %}
+  </select>
+  <input type="date" name="tanggal" value="{{ tanggal }}" class="border rounded px-3 py-2">
+  <button class="bg-blue-600 text-white px-4 py-2 rounded">Filter</button>
+  {% if event or tanggal %}
+    <a href="{{ url_for('admin.audit_log') }}" class="px-4 py-2 border rounded">Reset</a>
+  {% endif %}
+</form>
+
+<p class="text-sm text-gray-500 mb-2">{{ halaman.total }} kejadian &middot; waktu dalam WIB</p>
+
+<div class="overflow-x-auto bg-white rounded shadow">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-100 text-left">
+      <tr>
+        <th class="p-3 whitespace-nowrap">Waktu</th>
+        <th class="p-3">Event</th>
+        <th class="p-3">User / Email</th>
+        <th class="p-3">IP</th>
+        <th class="p-3">Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for log in halaman.items %}
+      {% set bahaya = log.event in ['login_failed', 'account_locked', 'register_failed', 'product_deleted', 'category_deleted'] %}
+      <tr class="border-t align-top">
+        <td class="p-3 whitespace-nowrap font-mono">{{ log.created_at | wib }}</td>
+        <td class="p-3">
+          <span class="px-2 py-0.5 rounded text-xs font-medium {{ 'bg-red-100 text-red-700' if bahaya else 'bg-gray-100 text-gray-700' }}">{{ log.event }}</span>
+        </td>
+        <td class="p-3">{{ log.email or '-' }}</td>
+        <td class="p-3 font-mono">{{ log.src_ip or '-' }}</td>
+        <td class="p-3 font-mono text-xs text-gray-600 break-all">{{ log.detail | tojson }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="p-6 text-center text-gray-500">Belum ada kejadian.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if halaman.pages > 1 %}
+<div class="flex justify-center gap-2 mt-6 text-sm">
+  {% if halaman.has_prev %}
+    <a href="{{ url_for('admin.audit_log', page=halaman.prev_num, event=event or None, tanggal=tanggal or None) }}" class="px-3 py-1 border rounded">&larr; Sebelumnya</a>
+  {% endif %}
+  <span class="px-3 py-1">{{ halaman.page }} / {{ halaman.pages }}</span>
+  {% if halaman.has_next %}
+    <a href="{{ url_for('admin.audit_log', page=halaman.next_num, event=event or None, tanggal=tanggal or None) }}" class="px-3 py-1 border rounded">Berikutnya &rarr;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}  
