@@ -15,3 +15,6 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    
+    AUDIT_LOG_PATH = os.environ.get("AUDIT_LOG_PATH", "logs/audit.log")
+    TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
