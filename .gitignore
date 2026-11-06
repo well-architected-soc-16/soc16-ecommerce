@@ -227,4 +227,8 @@ __pycache__/
 instance/
 .vscode/
 .vscode/
+*:Zone.Identifier
+# Gambar contoh lokal (hak cipta pihak lain)
+static/img/*
+!static/img/hero.jpg
 logs/
