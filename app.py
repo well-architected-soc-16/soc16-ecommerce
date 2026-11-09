@@ -43,7 +43,7 @@ def create_app():
 
     @app.route("/")
     def index():
-        from routes.shop import data_katalog
-        return render_template("index.html", **data_katalog())
+        from routes.shop import data_katalog, data_beranda
+        return render_template("index.html", **data_katalog(), **data_beranda())
 
     return app

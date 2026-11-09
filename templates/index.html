@@ -1,31 +1,75 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Cari: ' ~ q if q else 'Beranda' }}{% endblock %}
 
+{% set beranda = not q and not kategori_aktif and halaman.page == 1 %}
+
 {% block hero %}
-{% if not q and not kategori_aktif and halaman.page == 1 %}
-<section class="relative bg-neutral-900 bg-[url('/static/img/hero.jpg')] bg-cover bg-center">
-  <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" aria-hidden="true"></div>
-  <div class="relative max-w-7xl mx-auto px-4 min-h-[420px] md:min-h-[560px] flex items-end pb-12">
-    <div>
-      <h1 class="inline bg-white px-2 font-display font-extrabold text-3xl md:text-5xl uppercase tracking-wide leading-tight [box-decoration-break:clone]">
-        Koleksi terbaru
-      </h1>
-      <p class="mt-1 inline-block bg-white px-2 py-0.5 text-base md:text-lg">Harga jelas, pembayaran terverifikasi.</p>
-      <div class="mt-5">
-        <a href="#produk" class="inline-flex items-center gap-4 bg-white px-6 py-3 font-display font-bold uppercase tracking-wider text-lg shadow-[4px_4px_0_0_#fff] ring-1 ring-black hover:bg-neutral-100 active:bg-neutral-200">
-          Belanja sekarang
-          <svg viewBox="0 0 32 12" fill="none" stroke="currentColor" stroke-width="1.6" class="w-8 h-3" aria-hidden="true">
-            <path d="M0 6h30M25 1l5 5-5 5"/>
-          </svg>
-        </a>
+{% if beranda %}
+<section class="w-full max-w-7xl mx-auto px-4 pt-6" aria-roledescription="carousel" aria-label="Promo Pururuna" data-carousel>
+  <div class="relative overflow-hidden bg-neutral-100 h-[420px] md:h-[480px]">
+    {% for s in slides %}
+    <div class="absolute inset-0 transition-opacity duration-700 {{ 'opacity-100' if loop.first else 'opacity-0 invisible' }}"
+         role="group" aria-roledescription="slide" aria-label="{{ loop.index }} dari {{ slides|length }}" data-slide>
+      {% if s.ada_gambar %}
+        <img src="{{ url_for('static', filename='img/banner/' ~ s.gambar) }}" alt=""
+             class="absolute inset-0 w-full h-full object-cover" {{ '' if loop.first else 'loading=lazy' }}>
+      {% endif %}
+      <div class="relative h-full flex items-end md:items-center px-16 py-10 md:px-20">
+        <div class="max-w-md">
+          {% if s.label %}
+            <span class="inline-block mb-3 bg-black text-white text-xs font-display font-bold uppercase tracking-wider px-2 py-1">{{ s.label }}</span>
+          {% endif %}
+          <h2 class="font-display font-extrabold text-4xl md:text-6xl uppercase leading-none">{{ s.judul }}</h2>
+          <p class="mt-3 text-lg md:text-2xl italic text-neutral-500">{{ s.teks }}</p>
+          <a href="{{ s.tautan }}" class="mt-6 inline-flex items-center gap-4 bg-black text-white px-6 py-3 font-display font-bold uppercase tracking-wider hover:bg-neutral-800 active:bg-neutral-600">
+            {{ s.tombol }}
+            <svg viewBox="0 0 32 12" fill="none" stroke="currentColor" stroke-width="1.6" class="w-8 h-3" aria-hidden="true">
+              <path d="M0 6h30M25 1l5 5-5 5"/>
+            </svg>
+          </a>
+        </div>
       </div>
+    </div>
+    {% endfor %}
+
+    {# Tombol & titik disembunyikan dulu; ditampilkan oleh carousel.js #}
+    <button type="button" data-prev hidden
+            class="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/90 hover:bg-white active:bg-neutral-200"
+            aria-label="Slide sebelumnya">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+    </button>
+    <button type="button" data-next hidden
+            class="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/90 hover:bg-white active:bg-neutral-200"
+            aria-label="Slide berikutnya">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+    </button>
+    <div class="absolute bottom-4 right-4 flex gap-2" data-dots hidden>
+      {% for s in slides %}
+        <button type="button" class="w-3 h-3 border border-black {{ 'bg-black' if loop.first else 'bg-white' }}"
+                aria-label="Ke slide {{ loop.index }}" {{ 'aria-current=true' if loop.first else '' }} data-dot></button>
+      {% endfor %}
     </div>
   </div>
 </section>
+<script src="{{ url_for('static', filename='js/carousel.js') }}" defer></script>
 {% endif %}
 {% endblock %}
 
 {% block content %}
+{% if beranda and stok_terbatas %}
+<section id="stok-terbatas" class="scroll-mt-28 mb-14">
+  <div class="flex items-end justify-between gap-2 mb-4">
+    <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">Stok terbatas</h2>
+    <p class="text-sm text-neutral-600">Sisa sedikit, ambil sebelum habis</p>
+  </div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
+    {% for p in stok_terbatas %}
+      {% include "shop/_kartu.html" %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section id="produk" class="scroll-mt-28">
   <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
     <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">
@@ -74,4 +118,23 @@
   </nav>
   {% endif %}
 </section>
+
+{% if beranda %}
+<section class="mt-16 border-t border-neutral-200 pt-12">
+  <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide mb-8">Kenapa belanja di Pururuna</h2>
+  <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for judul, isi in [
+      ("Pembayaran diverifikasi", "Admin mengecek setiap bukti bayar sebelum pesanan diproses."),
+      ("Akun terlindungi", "Akun terkunci otomatis setelah beberapa kali salah password."),
+      ("Harga jelas", "Harga yang tampil adalah harga yang kamu bayar."),
+      ("Respons cepat", "Pesanan dan pertanyaan ditangani secepatnya."),
+    ] %}
+      <div class="border border-black p-6">
+        <p class="font-display font-bold uppercase tracking-wider text-lg">{{ judul }}</p>
+        <p class="mt-2 text-neutral-600">{{ isi }}</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}
