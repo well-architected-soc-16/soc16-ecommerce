@@ -1,0 +1,43 @@
+{# Komponen bersama untuk halaman login & register #}
+
+{% macro panel_gambar() %}
+<div class="hidden lg:flex relative min-h-[560px] items-end overflow-hidden bg-black">
+  <img src="{{ url_for('static', filename='img/hero.jpg') }}" alt=""
+       class="absolute inset-0 w-full h-full object-cover opacity-70">
+  <div class="relative p-10 text-white">
+    <p class="font-display font-extrabold uppercase text-5xl leading-none">Belanja aman,<br>bayar terverifikasi</p>
+    <p class="mt-4 text-lg text-neutral-200">Harga jelas, setiap pembayaran dicek admin.</p>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro kolom(field, autocomplete, placeholder, toggle=false) %}
+<div>
+  {{ field.label(class="block text-sm font-semibold mb-1.5") }}
+  <div class="relative">
+    {% set kelas = "w-full border px-4 py-3 text-base outline-none focus:border-black " ~ ("border-red-600" if field.errors else "border-neutral-300") ~ (" pr-12" if toggle else "") %}
+    {{ field(class=kelas, autocomplete=autocomplete, placeholder=placeholder,
+             **({"aria-invalid": "true", "aria-describedby": field.id ~ "-error"} if field.errors else {})) }}
+    {% if toggle %}
+      <button type="button" data-toggle-password="{{ field.id }}"
+              class="absolute inset-y-0 right-0 px-3 text-neutral-500 hover:text-black"
+              aria-label="Tampilkan password" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5" aria-hidden="true">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    {% endif %}
+  </div>
+  {% if field.errors %}
+    <div id="{{ field.id }}-error">
+      {% for err in field.errors %}
+        <p class="text-red-600 text-sm mt-1">{{ err }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro tombol(field) %}
+{{ field(class="w-full bg-black text-white py-3.5 font-display font-bold uppercase tracking-wider text-lg hover:bg-neutral-800 cursor-pointer") }}
+{% endmacro %}
