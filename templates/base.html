@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}E-Commerce{% endblock %}</title>
+  <title>{% block title %}Belanja{% endblock %} · Pururuna</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
   <script src="{{ url_for('static', filename='js/email-saran.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/menu.js') }}" defer></script>
 </head>
-<body class="bg-white min-h-screen text-black font-sans">
+<body class="bg-white min-h-screen flex flex-col text-black font-sans">
 
   <div class="bg-black text-white text-center text-xs md:text-sm font-display font-bold uppercase tracking-wider py-2 px-4">
     Belanja aman &middot; pembayaran diverifikasi admin &middot; Fast respon
@@ -28,8 +28,8 @@
   <header class="sticky top-0 z-30 bg-white border-b border-neutral-200">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
 
-      <a href="{{ url_for('index') }}" class="shrink-0 font-display font-extrabold text-2xl uppercase tracking-tight leading-none" aria-label="Beranda">
-        E&#8209;Commerce
+      <a href="{{ url_for('index') }}" class="shrink-0 font-display font-extrabold text-2xl uppercase tracking-tight leading-none" aria-label="Pururuna, ke beranda">
+        Pururuna
       </a>
 
       <form method="get" action="{{ url_for('index') }}" role="search"
@@ -42,7 +42,7 @@
           <input id="cari" type="search" name="q" maxlength="100" placeholder="Cari"
                  value="{{ request.args.get('q', '') if request.endpoint == 'index' else '' }}"
                  class="flex-1 bg-transparent px-4 py-2.5 text-base outline-none">
-          <button class="px-4 py-2.5" aria-label="Cari">
+          <button class="px-4 py-2.5 hover:bg-neutral-200 active:bg-neutral-300" aria-label="Cari">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6" aria-hidden="true">
               <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
             </svg>
@@ -80,7 +80,7 @@
         {% else %}
           <div class="flex items-center gap-4 text-sm font-medium">
             <a href="{{ url_for('auth.login') }}" class="hover:underline">Masuk</a>
-            <a href="{{ url_for('auth.register') }}" class="bg-black text-white px-4 py-2 font-display font-bold uppercase tracking-wider hover:bg-neutral-800">Daftar</a>
+            <a href="{{ url_for('auth.register') }}" class="bg-black text-white px-4 py-2 font-display font-bold uppercase tracking-wider hover:bg-neutral-800 active:bg-neutral-600">Daftar</a>
           </div>
         {% endif %}
       </div>
@@ -89,7 +89,7 @@
 
   {% block hero %}{% endblock %}
 
-  <main class="max-w-7xl mx-auto px-4 py-8">
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for kategori, pesan in messages %}
         <div class="mb-4 p-3 border-l-4 {{ 'border-red-600 bg-red-50 text-red-800' if kategori == 'error' else 'border-green-600 bg-green-50 text-green-800' }}">
@@ -99,5 +99,29 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+
+  <footer class="mt-16 border-t border-neutral-200">
+    <div class="max-w-7xl mx-auto px-4 py-10 grid gap-8 sm:grid-cols-3 text-sm">
+      <div>
+        <p class="font-display font-extrabold text-2xl uppercase tracking-tight">Pururuna</p>
+        <p class="mt-2 text-neutral-600 max-w-xs">Toko online dengan pembayaran yang diverifikasi admin, supaya belanja terasa aman.</p>
+      </div>
+      <div>
+        <p class="font-display font-bold uppercase tracking-wider mb-2">Belanja</p>
+        <ul class="space-y-1 text-neutral-600">
+          <li><a href="{{ url_for('index') }}#produk" class="hover:text-black hover:underline">Semua produk</a></li>
+          {% if not g.user %}<li><a href="{{ url_for('auth.register') }}" class="hover:text-black hover:underline">Buat akun</a></li>{% endif %}
+        </ul>
+      </div>
+      <div>
+        <p class="font-display font-bold uppercase tracking-wider mb-2">Bantuan</p>
+        <ul class="space-y-1 text-neutral-600">
+          <li>Pembayaran dicek admin sebelum pesanan diproses</li>
+          <li>Kontak: admin@pururuna.id</li>
+        </ul>
+      </div>
+    </div>
+    <p class="border-t border-neutral-200 py-4 text-center text-xs text-neutral-500">&copy; 2026 Pururuna &middot; Proyek PBL Tim 16</p>
+  </footer>
 </body>
 </html>

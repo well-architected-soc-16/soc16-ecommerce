@@ -12,7 +12,7 @@
       </h1>
       <p class="mt-1 inline-block bg-white px-2 py-0.5 text-base md:text-lg">Harga jelas, pembayaran terverifikasi.</p>
       <div class="mt-5">
-        <a href="#produk" class="inline-flex items-center gap-4 bg-white px-6 py-3 font-display font-bold uppercase tracking-wider text-lg shadow-[4px_4px_0_0_#fff] ring-1 ring-black hover:bg-neutral-100">
+        <a href="#produk" class="inline-flex items-center gap-4 bg-white px-6 py-3 font-display font-bold uppercase tracking-wider text-lg shadow-[4px_4px_0_0_#fff] ring-1 ring-black hover:bg-neutral-100 active:bg-neutral-200">
           Belanja sekarang
           <svg viewBox="0 0 32 12" fill="none" stroke="currentColor" stroke-width="1.6" class="w-8 h-3" aria-hidden="true">
             <path d="M0 6h30M25 1l5 5-5 5"/>
@@ -43,10 +43,10 @@
 
   <div class="flex gap-2 mb-8 overflow-x-auto pb-1">
     <a href="{{ url_for('index', q=q or None) }}"
-       class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if not kategori_aktif else 'hover:bg-neutral-100' }}">Semua</a>
+       class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if not kategori_aktif else 'hover:bg-neutral-100 active:bg-neutral-200' }}">Semua</a>
     {% for k in daftar_kategori %}
       <a href="{{ url_for('index', kategori=k.slug, q=q or None) }}"
-         class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if kategori_aktif and kategori_aktif.id == k.id else 'hover:bg-neutral-100' }}">
+         class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if kategori_aktif and kategori_aktif.id == k.id else 'hover:bg-neutral-100 active:bg-neutral-200' }}">
         {{ k.nama }}
       </a>
     {% endfor %}
@@ -64,12 +64,12 @@
   <nav class="flex justify-center items-center gap-2 mt-10" aria-label="Halaman">
     {% if halaman.has_prev %}
       <a href="{{ url_for('index', page=halaman.prev_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}#produk"
-         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100">&larr; Sebelumnya</a>
+         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100 active:bg-neutral-200">&larr; Sebelumnya</a>
     {% endif %}
     <span class="px-3 py-2 text-neutral-600">{{ halaman.page }} / {{ halaman.pages }}</span>
     {% if halaman.has_next %}
       <a href="{{ url_for('index', page=halaman.next_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}#produk"
-         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100">Berikutnya &rarr;</a>
+         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100 active:bg-neutral-200">Berikutnya &rarr;</a>
     {% endif %}
   </nav>
   {% endif %}
