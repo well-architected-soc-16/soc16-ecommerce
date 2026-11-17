@@ -231,4 +231,5 @@ instance/
 # Gambar contoh lokal (hak cipta pihak lain)
 static/img/*
 !static/img/hero.jpg
+!static/img/banner/
 logs/
