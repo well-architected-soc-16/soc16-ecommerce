@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from audit import init_audit, WIB
@@ -18,32 +18,25 @@ def create_app():
     migrate.init_app(app, db)
     csrf.init_app(app)
 
-    import models  # noqa: F401
-    from models import Product
+    import models  # noqa: F401  (daftarkan semua tabel untuk Flask-Migrate)
 
     from routes.auth import auth_bp
-    app.register_blueprint(auth_bp)
-
     from routes.admin import admin_bp
-    app.register_blueprint(admin_bp)
-
     from routes.shop import shop_bp
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
     app.register_blueprint(shop_bp)
 
-    from commands import buat_admin
-    app.cli.add_command(buat_admin)
+    from commands import create_admin, seed
+    app.cli.add_command(create_admin)
+    app.cli.add_command(seed)
 
     @app.template_filter("rupiah")
-    def format_rupiah(nilai):
-        return "Rp " + f"{nilai:,.0f}".replace(",", ".")
+    def format_rupiah(value):
+        return "Rp " + f"{value:,.0f}".replace(",", ".")
 
     @app.template_filter("wib")
     def format_wib(dt):
         return dt.astimezone(WIB).strftime("%d-%m-%Y %H:%M:%S") if dt else "-"
-
-    @app.route("/")
-    def index():
-        from routes.shop import data_katalog, data_beranda
-        return render_template("index.html", **data_katalog(), **data_beranda())
 
     return app

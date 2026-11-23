@@ -1,103 +1,134 @@
 import os
 
 from flask import Blueprint, render_template, request, redirect, url_for, current_app
+from sqlalchemy.orm import selectinload
 
 from extensions import db
-from models import Category, Product
+from models import Brand, Product, ProductSize
 
 shop_bp = Blueprint("shop", __name__)
 
 SLIDES = [
     {
-        "gambar": "adidas-1.jpg",
+        "image": "adidas-1.jpg",
         "label": "Baru",
-        "judul": "Koleksi terbaru",
-        "teks": "Harga jelas, pembayaran terverifikasi.",
-        "tombol": "Belanja sekarang",
-        "tautan": "#produk",
+        "title": "Koleksi terbaru",
+        "text": "Harga jelas, pembayaran terverifikasi.",
+        "button": "Belanja sekarang",
+        "link": "#produk",
     },
     {
-        "gambar": "nb.jpg",
+        "image": "nb.jpg",
         "label": "Belanja aman",
-        "judul": "Pembayaran dicek admin",
-        "teks": "Pesanan diproses setelah bukti bayar diverifikasi.",
-        "tombol": "Lihat produk",
-        "tautan": "#produk",
+        "title": "Pembayaran dicek admin",
+        "text": "Pesanan diproses setelah bukti bayar diverifikasi.",
+        "button": "Lihat produk",
+        "link": "#produk",
     },
     {
-        "gambar": "nike-2.jpg",
+        "image": "nike-2.jpg",
         "label": "Segera habis",
-        "judul": "Stok terbatas",
-        "teks": "Ambil sebelum kehabisan.",
-        "tombol": "Lihat stok terbatas",
-        "tautan": "#stok-terbatas",
+        "title": "Stok terbatas",
+        "text": "Ambil sebelum kehabisan.",
+        "button": "Lihat stok terbatas",
+        "link": "#stok-terbatas",
     },
 ]
-BATAS_STOK_SEDIKIT = 5
+LOW_STOCK_LIMIT = 5
+PER_PAGE = 12
 
 
-def data_katalog():
+def _stock_subquery():
+    return (
+        db.select(ProductSize.product_id, db.func.sum(ProductSize.stock).label("total"))
+        .group_by(ProductSize.product_id)
+        .subquery()
+    )
+
+
+def catalog_data():
     q = (request.args.get("q") or "").strip()[:100]
-    kategori_slug = request.args.get("kategori") or ""
+    brand_slug = (request.args.get("brand") or "").strip()[:120]
     page = request.args.get("page", 1, type=int)
 
-    query = db.select(Product).where(Product.is_active.is_(True))
+    query = (
+        db.select(Product)
+        .where(Product.is_active.is_(True))
+        .options(selectinload(Product.sizes), selectinload(Product.brand))
+    )
 
-    kategori_aktif = None
-    if kategori_slug:
-        kategori_aktif = db.session.execute(
-            db.select(Category).filter_by(slug=kategori_slug)
+    active_brand = None
+    if brand_slug:
+        active_brand = db.session.execute(
+            db.select(Brand).filter_by(slug=brand_slug)
         ).scalar_one_or_none()
-        if kategori_aktif:
-            query = query.where(Product.category_id == kategori_aktif.id)
+        if active_brand:
+            query = query.where(Product.brand_id == active_brand.id)
 
     if q:
-        query = query.where(Product.nama.icontains(q, autoescape=True))
+        query = query.where(Product.name.icontains(q, autoescape=True))
 
-    query = query.order_by(Product.created_at.desc())
-    halaman = db.paginate(query, page=page, per_page=12, error_out=False)
+    query = query.order_by(Product.created_at.desc(), Product.id.desc())
+    pagination = db.paginate(query, page=page, per_page=PER_PAGE, error_out=False)
 
-    daftar_kategori = db.session.execute(
-        db.select(Category).order_by(Category.nama)
-    ).scalars().all()
+    brands = db.session.execute(db.select(Brand).order_by(Brand.name)).scalars().all()
 
-    return {
-        "halaman": halaman,
-        "q": q,
-        "kategori_aktif": kategori_aktif,
-        "daftar_kategori": daftar_kategori,
-    }
+    return {"pagination": pagination, "q": q, "active_brand": active_brand, "brands": brands}
 
 
-def data_beranda():
+def home_data():
     folder = os.path.join(current_app.static_folder, "img", "banner")
     slides = [
-        {**slide, "ada_gambar": os.path.isfile(os.path.join(folder, slide["gambar"]))}
+        {**slide, "has_image": os.path.isfile(os.path.join(folder, slide["image"]))}
         for slide in SLIDES
     ]
 
-    stok_terbatas = db.session.execute(
+    stock = _stock_subquery()
+    low_stock = db.session.execute(
         db.select(Product)
-        .where(
-            Product.is_active.is_(True),
-            Product.stock > 0,
-            Product.stock <= BATAS_STOK_SEDIKIT,
-        )
-        .order_by(Product.stock)
+        .join(stock, stock.c.product_id == Product.id)
+        .where(Product.is_active.is_(True), stock.c.total > 0, stock.c.total <= LOW_STOCK_LIMIT)
+        .options(selectinload(Product.sizes), selectinload(Product.brand))
+        .order_by(stock.c.total)
         .limit(4)
     ).scalars().all()
 
-    return {"slides": slides, "stok_terbatas": stok_terbatas}
+    return {"slides": slides, "low_stock": low_stock}
+
+
+@shop_bp.route("/")
+def index():
+    data = catalog_data()
+    is_home = not data["q"] and not data["active_brand"] and data["pagination"].page == 1
+    if is_home:
+        data.update(home_data())
+    return render_template("index.html", is_home=is_home, **data)
 
 
 @shop_bp.route("/produk")
-def katalog():
-    return redirect(url_for("index", **request.args.to_dict()))
+def catalog():
+    return redirect(url_for("shop.index", **request.args.to_dict()))
 
 
 @shop_bp.route("/produk/<slug>")
 def detail(slug):
-    produk = db.first_or_404(
-        db.select(Product).filter_by(slug=slug, is_active=True)
+    product = db.first_or_404(
+        db.select(Product)
+        .filter_by(slug=slug, is_active=True)
+        .options(selectinload(Product.sizes), selectinload(Product.brand))
     )
-    return render_template("shop/detail.html", produk=produk)
+
+    # Varian warna lain dari model yang sama
+    variants = []
+    if product.group_id:
+        variants = db.session.execute(
+            db.select(Product)
+            .where(
+                Product.group_id == product.group_id,
+                Product.id != product.id,
+                Product.is_active.is_(True),
+            )
+            .order_by(Product.color)
+        ).scalars().all()
+
+    return render_template("shop/detail.html", product=product, variants=variants)

@@ -1,7 +1,14 @@
-# ERD — E-Commerce srv-web (PBL RKS-316)
+# ERD — E-Commerce Pururuna (PBL RKS-316) · v2
 
-Dokumen desain basis data aplikasi e-commerce Flask.
+Dokumen desain basis data aplikasi e-commerce Flask, versi rombak (v2).
 DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
+
+**Aturan penamaan:** semua nama tabel, kolom, dan nilai status dalam bahasa Inggris (snake_case).
+Teks yang dilihat pengguna tetap bahasa Indonesia (diterjemahkan di template).
+
+![ERD v2](erd.png)
+
+> Gambar `erd.png` belum memuat `product_groups.brand_id`; diagram mermaid di bawah adalah acuan terbaru.
 
 ---
 
@@ -9,131 +16,222 @@ DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
 
 ```mermaid
 erDiagram
-    users ||--o{ orders : "memesan"
-    users ||--o| carts : "memiliki"
-    users ||--o{ audit_logs : "menghasilkan"
-    categories ||--o{ products : "mengelompokkan"
-    products ||--o{ cart_items : "ada di"
-    products ||--o{ order_items : "tercatat di"
-    carts ||--o{ cart_items : "berisi"
-    orders ||--o{ order_items : "berisi"
-    orders ||--o| payments : "dibayar via"
+    users ||--o| carts : "has"
+    users ||--o{ orders : "places"
+    users ||--o{ audit_logs : "generates"
+    users ||--o{ payments : "verifies"
+    brands ||--o{ products : "groups"
+    brands ||--o{ product_groups : "owns"
+    product_groups ||--o{ products : "color variants"
+    products ||--|{ product_sizes : "has sizes"
+    carts ||--o{ cart_items : "contains"
+    product_sizes ||--o{ cart_items : "added as"
+    orders ||--|{ order_items : "contains"
+    product_sizes ||--o{ order_items : "ordered as"
+    orders ||--o| payments : "paid via"
 
     users {
         int id PK
-        string email UK "disimpan lowercase"
+        string email UK "lowercase"
         string password_hash
-        string nama
+        string name
+        string phone "NULL"
+        text address "NULL, alamat default checkout"
         string role "customer | admin"
         bool is_active
         int failed_login_count
-        datetime locked_until "null jika tidak terkunci"
+        datetime locked_until "NULL jika tidak terkunci"
+        datetime created_at
+        datetime updated_at
+    }
+
+    brands {
+        int id PK
+        string name UK
+        string slug UK
+        string logo_filename "NULL"
         datetime created_at
     }
 
-    categories {
+    product_groups {
         int id PK
-        string nama
-        string slug UK
+        int brand_id FK "grup varian berlaku per brand"
+        string name "nama model, mis. Samba OG"
+        datetime created_at
     }
 
     products {
         int id PK
-        int category_id FK
-        string nama
+        int brand_id FK
+        int group_id FK "NULL, sama = varian warna"
+        string name
         string slug UK
-        text deskripsi
-        numeric harga "numeric(12,2)"
-        int stock "sumber kebenaran stok"
-        string image_filename "nama file hasil secure_filename"
+        text description
+        string color "NULL"
+        string audience "men | women | unisex | kids"
+        string product_type "sneakers | running | basketball | casual | sandals"
+        numeric price "numeric(12,2)"
+        string image_filename "NULL, hasil secure_filename"
+        bool is_featured "rak Pilihan Kami"
         bool is_active
         datetime created_at
+        datetime updated_at
+    }
+
+    product_sizes {
+        int id PK
+        int product_id FK
+        string size "mis. 40, 41, 42"
+        int stock ">= 0, sumber kebenaran stok"
     }
 
     carts {
         int id PK
-        int user_id FK "unik, 1 user 1 keranjang aktif"
+        int user_id FK "UNIQUE"
         datetime updated_at
     }
 
     cart_items {
         int id PK
         int cart_id FK
-        int product_id FK
+        int product_size_id FK
         int quantity "> 0"
     }
 
     orders {
         int id PK
         int user_id FK
-        string order_number UK
-        string status "pending|paid|shipped|done|cancelled"
+        string order_number UK "mis. PRN-7Q4K2M"
+        string status "pending_payment | awaiting_verification | paid | shipped | completed | cancelled"
+        numeric subtotal "dihitung ulang di server"
+        numeric shipping_cost
         numeric total_amount "dihitung ulang di server"
-        text alamat_kirim
+        string recipient_name
+        string recipient_phone
+        text shipping_address
+        text note "NULL"
         datetime created_at
+        datetime paid_at "NULL"
+        datetime shipped_at "NULL"
+        datetime completed_at "NULL"
     }
 
     order_items {
         int id PK
         int order_id FK
-        int product_id FK
-        string product_nama "snapshot saat checkout"
-        numeric unit_price "snapshot harga saat checkout"
+        int product_size_id FK "NULL jika produk dihapus"
+        string product_name "snapshot"
+        string size "snapshot"
+        string color "snapshot, NULL"
+        numeric unit_price "snapshot harga"
         int quantity
         numeric subtotal
     }
 
     payments {
         int id PK
-        int order_id FK "unik"
-        string metode
-        string proof_filename "bukti bayar, divalidasi MIME + 2MB"
+        int order_id FK "UNIQUE"
+        string method "bank_transfer | ewallet"
+        string proof_filename "divalidasi MIME + maks 2 MB"
         numeric amount
-        string status "menunggu|terverifikasi|ditolak"
-        int verified_by FK "admin yang memverifikasi"
+        string status "pending | verified | rejected"
+        text rejection_reason "NULL"
+        int verified_by FK "NULL, admin"
         datetime uploaded_at
+        datetime verified_at "NULL"
     }
 
     audit_logs {
         int id PK
-        int user_id FK "null untuk login gagal"
-        string action "login_gagal|login_sukses|akses_admin|upload|ubah_produk"
-        string ip_address "dari X-Forwarded-For via ProxyFix"
-        text detail
+        int user_id FK "NULL untuk login gagal"
+        string event "login_failed | account_locked | login_success | ..."
+        string email "NULL, email yang dicoba saat login gagal"
+        string src_ip "dari X-Forwarded-For via ProxyFix"
+        string user_agent
+        json detail "tanpa password"
         datetime created_at
     }
 ```
 
 ---
 
-## 2. Keputusan desain penting
+## 2. Perubahan dari v1
+
+| Bagian | v1 | v2 | Alasan |
+|---|---|---|---|
+| Penamaan | campur (`nama`, `harga`, `alamat_kirim`) | semua Inggris (`name`, `price`, `shipping_address`) | seragam dengan event audit log dan rule Wazuh |
+| `categories` | kategori umum | **`brands`** + `logo_filename` | di UI memang "Brand"; logo untuk rak Brand Populer |
+| Stok | `products.stock` | **`product_sizes.stock`** per ukuran | sepatu dijual per ukuran |
+| Varian warna | tidak ada | **`product_groups`** (milik satu brand) + `products.group_id`, `products.color` | detail produk menampilkan pilihan warna lain dari model yang sama |
+| Filter katalog | hanya brand | + `audience`, `product_type`, `is_featured` | filter sidebar (untuk, jenis) dan rak Pilihan Kami |
+| `cart_items` | per `product_id` | per **`product_size_id`** | keranjang menyimpan ukuran yang dipilih |
+| `orders.status` | `pending/paid/...` | 6 status alur bukti bayar | sesuai desain Figma (menunggu bayar → menunggu verifikasi → dibayar → dikirim → selesai) |
+| `orders` | `total_amount`, `alamat_kirim` | + `subtotal`, `shipping_cost`, data penerima, `paid_at`, `shipped_at`, `completed_at` | checkout, laporan transaksi, nota |
+| `order_items` | snapshot nama + harga | + snapshot `size`, `color` | nota tidak berubah walau produk diedit/dihapus |
+| `payments` | tanpa alasan tolak | + `rejection_reason`, `verified_at` | customer tahu kenapa ditolak; laporan waktu verifikasi |
+| `users` | tanpa kontak | + `phone`, `address`, `updated_at` | profil dan isi otomatis checkout |
+| `audit_logs` | `action`, `ip_address` | `event`, `email`, `src_ip`, `user_agent`, `detail` (JSON) | disamakan dengan kode audit log (PR #16) dan format log untuk Wazuh |
+
+---
+
+## 3. Keputusan desain penting
 
 | Keputusan | Alasan |
 |---|---|
-| `order_items` menyimpan **snapshot** `product_nama` + `unit_price` | Kalau harga produk berubah/dihapus, riwayat pesanan lama tidak ikut berubah. Tanpa ini, nota pelanggan bisa berubah sendiri. |
-| `total_amount` **dihitung ulang di server** saat checkout | Harga dan subtotal yang dikirim browser tidak pernah dipercaya (perbaikan dari Modul 3). |
-| `products.stock` satu-satunya sumber stok, dikurangi **saat checkout** di dalam transaksi | Mencegah stok minus saat dua user checkout bersamaan. Pakai `SELECT ... FOR UPDATE`. |
-| `harga` pakai `numeric(12,2)`, bukan `float` | `float` menimbulkan error pembulatan pada uang. |
-| `users.email` disimpan lowercase + `UNIQUE` | PostgreSQL case-sensitive; tanpa ini `A@mail.com` dan `a@mail.com` jadi dua akun. |
-| `failed_login_count` + `locked_until` di tabel `users` | Pembatasan brute force yang bertahan antar worker Gunicorn (rate limiter dict di Modul 6 tidak shared). |
-| `role` sebagai kolom, dicek di middleware | Dasar pemeriksaan hak akses admin (cegah IDOR / akses admin oleh customer). |
-| Tabel `audit_logs` terpisah | Sumber event untuk agen Wazuh ke soc-siem: login gagal, akses admin, upload. |
-| `cart_items` unik per (`cart_id`, `product_id`) | Tambah produk yang sama menambah quantity, bukan baris baru. |
+| `order_items` menyimpan **snapshot** nama, ukuran, warna, harga | Riwayat pesanan dan nota tidak ikut berubah saat produk diedit atau dihapus. |
+| `subtotal` dan `total_amount` **dihitung ulang di server** | Harga dari browser tidak pernah dipercaya. |
+| `product_sizes.stock` satu-satunya sumber stok, dikurangi **saat checkout** dalam satu transaksi dengan `SELECT ... FOR UPDATE` | Mencegah stok minus saat dua user checkout bersamaan. |
+| Stok total produk **dihitung**, tidak disimpan (`SUM(product_sizes.stock)`) | Tidak ada dua angka stok yang bisa saling beda. |
+| `product_groups.brand_id` (FK `brands`, `ON DELETE CASCADE`); grup dicari berdasarkan (`brand_id`, `lower(name)`) | Model dengan nama sama dari brand berbeda (mis. "Classic") tidak tercampur sebagai varian warna. |
+| Uang pakai `numeric(12,2)` | `float` menimbulkan error pembulatan. |
+| `users.email` lowercase + `UNIQUE` | Mencegah dua akun dengan email beda huruf besar/kecil. |
+| `failed_login_count` + `locked_until` di `users` | Penguncian akun bertahan antar worker Gunicorn. |
+| `role` dicek di setiap route admin | Mencegah customer mengakses halaman admin. |
+| Nilai `status`, `audience`, `product_type`, `method` divalidasi dengan **whitelist** di server + `CHECK` constraint | Nilai di luar daftar ditolak, baik dari form maupun dari URL. |
+| `order_items.product_size_id` → `ON DELETE SET NULL` | Produk boleh dihapus tanpa merusak pesanan lama (snapshot tetap ada). |
+| **Hapus akun = anonimisasi**, bukan hapus baris: `email` → `deleted-{id}@deleted.invalid`, `name` → "Akun dihapus", `phone`/`address` → NULL, password diacak, `is_active=False`, keranjang dihapus | Riwayat pesanan dan laporan tetap utuh (`orders.user_id` RESTRICT), data pribadi hilang. |
+| Ganti password/email admin hanya lewat CLI server | Kalau sesi admin dibajak, penyerang tidak bisa mengambil alih akun lewat form web. |
+| Detail audit log tidak pernah berisi password | Log dikirim ke Wazuh di soc-siem; password tidak boleh ikut. |
 
 ---
 
-## 3. Indeks yang perlu dibuat
+## 4. Constraint dan indeks
 
-- `users(email)` — UNIQUE, dipakai tiap login
-- `products(slug)` — UNIQUE, untuk URL detail produk
-- `products(category_id)` — filter katalog
-- `orders(user_id, created_at)` — riwayat pesanan user
-- `order_items(order_id)` — tampil detail pesanan
-- `audit_logs(created_at)` — pencarian log per rentang waktu
+**Unique**
+- `users(email)`, `brands(name)`, `brands(slug)`, `products(slug)`, `orders(order_number)`
+- `carts(user_id)`, `payments(order_id)`
+- `product_sizes(product_id, size)`
+- `cart_items(cart_id, product_size_id)` — produk + ukuran yang sama menambah quantity, bukan baris baru
+
+**Check**
+- `product_sizes.stock >= 0`, `cart_items.quantity > 0`, `order_items.quantity > 0`
+- `products.price >= 0`, `orders.total_amount >= 0`
+- `orders.status IN (...)`, `payments.status IN (...)`, `users.role IN ('customer','admin')`
+- `users.email = lower(email)`, `order_items.subtotal >= 0`
+
+**Indeks**
+- `products(brand_id)`, `products(group_id)`, `products(is_active, created_at)` — katalog dan rak beranda
+- `product_groups(brand_id)` — cari grup varian per brand
+- `orders(user_id, created_at)` — pesanan saya
+- `orders(status, created_at)` — daftar pesanan admin, laporan
+- `payments(status, uploaded_at)` — antrean verifikasi
+- `order_items(order_id)`
+- `audit_logs(event, created_at)` — filter log dan retensi 90 hari
 
 ---
 
-## 4. Catatan migrasi
+## 5. Belum masuk (fitur nanti)
 
-- Semua perubahan skema lewat Flask-Migrate: `flask db migrate -m "..."` → `flask db upgrade`
-- Jangan ubah tabel langsung lewat `psql` — skema di srv-db nanti dibangun dari folder `migrations/`
+- Upload ulang bukti bayar setelah ditolak: **update baris `payments` yang sama** (ganti `proof_filename`, `status=pending`, `rejection_reason=NULL`, `uploaded_at=now`), jangan buat baris baru (`order_id` UNIQUE). Riwayat penolakan dicatat di `audit_logs`.
+
+- `password_reset_tokens` (`user_id`, `token_hash`, `expires_at`, `used_at`) untuk lupa password customer — butuh SMTP.
+
+---
+
+## 6. Catatan migrasi
+
+- v2 memakai **satu migrasi awal baru** (folder `migrations/` lama di-reset). Aman karena srv-db belum dibangun dari migrasi lama; database dev di laptop dibuat ulang.
+- Data contoh diisi lewat perintah `flask seed`.
+- Setelah v2, semua perubahan skema lewat Flask-Migrate: `flask db migrate -m "..."` → `flask db upgrade`.
+- Jangan ubah tabel langsung lewat `psql`.
+- Nama constraint mengikuti `naming_convention` di `extensions.py` (`pk_`, `fk_`, `uq_`, `ck_`, `ix_`).

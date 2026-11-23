@@ -1,17 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Cari: ' ~ q if q else 'Beranda' }}{% endblock %}
 
-{% set beranda = not q and not kategori_aktif and halaman.page == 1 %}
-
 {% block hero %}
-{% if beranda %}
+{% if is_home %}
 <section class="w-full max-w-7xl mx-auto px-4 pt-6" aria-roledescription="carousel" aria-label="Promo Pururuna" data-carousel>
   <div class="relative overflow-hidden bg-neutral-100 h-[420px] md:h-[480px]">
     {% for s in slides %}
     <div class="absolute inset-0 transition-opacity duration-700 {{ 'opacity-100' if loop.first else 'opacity-0 invisible' }}"
          role="group" aria-roledescription="slide" aria-label="{{ loop.index }} dari {{ slides|length }}" data-slide>
-      {% if s.ada_gambar %}
-        <img src="{{ url_for('static', filename='img/banner/' ~ s.gambar) }}" alt=""
+      {% if s.has_image %}
+        <img src="{{ url_for('static', filename='img/banner/' ~ s.image) }}" alt=""
              class="absolute inset-0 w-full h-full object-cover" {{ '' if loop.first else 'loading=lazy' }}>
       {% endif %}
       <div class="relative h-full flex items-end md:items-center px-16 py-10 md:px-20">
@@ -19,10 +17,10 @@
           {% if s.label %}
             <span class="inline-block mb-3 bg-black text-white text-xs font-display font-bold uppercase tracking-wider px-2 py-1">{{ s.label }}</span>
           {% endif %}
-          <h2 class="font-display font-extrabold text-4xl md:text-6xl uppercase leading-none">{{ s.judul }}</h2>
-          <p class="mt-3 text-lg md:text-2xl italic text-neutral-500">{{ s.teks }}</p>
-          <a href="{{ s.tautan }}" class="mt-6 inline-flex items-center gap-4 bg-black text-white px-6 py-3 font-display font-bold uppercase tracking-wider hover:bg-neutral-800 active:bg-neutral-600">
-            {{ s.tombol }}
+          <h2 class="font-display font-extrabold text-4xl md:text-6xl uppercase leading-none">{{ s.title }}</h2>
+          <p class="mt-3 text-lg md:text-2xl italic text-neutral-500">{{ s.text }}</p>
+          <a href="{{ s.link }}" class="mt-6 inline-flex items-center gap-4 bg-black text-white px-6 py-3 font-display font-bold uppercase tracking-wider hover:bg-neutral-800 active:bg-neutral-600">
+            {{ s.button }}
             <svg viewBox="0 0 32 12" fill="none" stroke="currentColor" stroke-width="1.6" class="w-8 h-3" aria-hidden="true">
               <path d="M0 6h30M25 1l5 5-5 5"/>
             </svg>
@@ -56,14 +54,14 @@
 {% endblock %}
 
 {% block content %}
-{% if beranda and stok_terbatas %}
+{% if is_home and low_stock %}
 <section id="stok-terbatas" class="scroll-mt-28 mb-14">
   <div class="flex items-end justify-between gap-2 mb-4">
     <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">Stok terbatas</h2>
     <p class="text-sm text-neutral-600">Sisa sedikit, ambil sebelum habis</p>
   </div>
   <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
-    {% for p in stok_terbatas %}
+    {% for p in low_stock %}
       {% include "shop/_kartu.html" %}
     {% endfor %}
   </div>
@@ -74,64 +72,64 @@
   <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
     <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">
       {% if q %}Hasil: "{{ q }}"
-      {% elif kategori_aktif %}{{ kategori_aktif.nama }}
+      {% elif active_brand %}{{ active_brand.name }}
       {% else %}Semua produk{% endif %}
     </h2>
-    {% if q or kategori_aktif %}
+    {% if q or active_brand %}
       <p class="text-sm text-neutral-600">
-        {{ halaman.total }} produk ·
-        <a href="{{ url_for('index') }}" class="underline">reset</a>
+        {{ pagination.total }} produk ·
+        <a href="{{ url_for('shop.index') }}" class="underline">reset</a>
       </p>
     {% endif %}
   </div>
 
   <div class="flex gap-2 mb-8 overflow-x-auto pb-1">
-    <a href="{{ url_for('index', q=q or None) }}"
-       class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if not kategori_aktif else 'hover:bg-neutral-100 active:bg-neutral-200' }}">Semua</a>
-    {% for k in daftar_kategori %}
-      <a href="{{ url_for('index', kategori=k.slug, q=q or None) }}"
-         class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if kategori_aktif and kategori_aktif.id == k.id else 'hover:bg-neutral-100 active:bg-neutral-200' }}">
-        {{ k.nama }}
+    <a href="{{ url_for('shop.index', q=q or None) }}"
+       class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if not active_brand else 'hover:bg-neutral-100 active:bg-neutral-200' }}">Semua</a>
+    {% for b in brands %}
+      <a href="{{ url_for('shop.index', brand=b.slug, q=q or None) }}"
+         class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if active_brand and active_brand.id == b.id else 'hover:bg-neutral-100 active:bg-neutral-200' }}">
+        {{ b.name }}
       </a>
     {% endfor %}
   </div>
 
   <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
-    {% for p in halaman.items %}
+    {% for p in pagination.items %}
       {% include "shop/_kartu.html" %}
     {% else %}
       <p class="col-span-full text-neutral-500 py-10 text-center">Produk tidak ditemukan.</p>
     {% endfor %}
   </div>
 
-  {% if halaman.pages > 1 %}
+  {% if pagination.pages > 1 %}
   <nav class="flex justify-center items-center gap-2 mt-10" aria-label="Halaman">
-    {% if halaman.has_prev %}
-      <a href="{{ url_for('index', page=halaman.prev_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}#produk"
+    {% if pagination.has_prev %}
+      <a href="{{ url_for('shop.index', page=pagination.prev_num, q=q or None, brand=active_brand.slug if active_brand else None) }}#produk"
          class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100 active:bg-neutral-200">&larr; Sebelumnya</a>
     {% endif %}
-    <span class="px-3 py-2 text-neutral-600">{{ halaman.page }} / {{ halaman.pages }}</span>
-    {% if halaman.has_next %}
-      <a href="{{ url_for('index', page=halaman.next_num, q=q or None, kategori=kategori_aktif.slug if kategori_aktif else None) }}#produk"
+    <span class="px-3 py-2 text-neutral-600">{{ pagination.page }} / {{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+      <a href="{{ url_for('shop.index', page=pagination.next_num, q=q or None, brand=active_brand.slug if active_brand else None) }}#produk"
          class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100 active:bg-neutral-200">Berikutnya &rarr;</a>
     {% endif %}
   </nav>
   {% endif %}
 </section>
 
-{% if beranda %}
+{% if is_home %}
 <section class="mt-16 border-t border-neutral-200 pt-12">
   <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide mb-8">Kenapa belanja di Pururuna</h2>
   <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-    {% for judul, isi in [
+    {% for heading, body in [
       ("Pembayaran diverifikasi", "Admin mengecek setiap bukti bayar sebelum pesanan diproses."),
       ("Akun terlindungi", "Akun terkunci otomatis setelah beberapa kali salah password."),
       ("Harga jelas", "Harga yang tampil adalah harga yang kamu bayar."),
       ("Respons cepat", "Pesanan dan pertanyaan ditangani secepatnya."),
     ] %}
       <div class="border border-black p-6">
-        <p class="font-display font-bold uppercase tracking-wider text-lg">{{ judul }}</p>
-        <p class="mt-2 text-neutral-600">{{ isi }}</p>
+        <p class="font-display font-bold uppercase tracking-wider text-lg">{{ heading }}</p>
+        <p class="mt-2 text-neutral-600">{{ body }}</p>
       </div>
     {% endfor %}
   </div>
