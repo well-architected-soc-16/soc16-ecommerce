@@ -1,15 +1,16 @@
-{% extends "base.html" %}
+{% extends "admin/_layout.html" %}
+{% from "components/buttons.html" import link_button %}
 {% block title %}Produk{% endblock %}
 {% block content %}
-<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-blue-600">&larr; Dashboard</a>
-<div class="flex justify-between items-center mt-2 mb-6">
-  <h1 class="text-2xl font-bold">Produk</h1>
-  <a href="{{ url_for('admin.product_create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">+ Tambah</a>
+<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-[#111] hover:underline">&larr; Dashboard</a>
+<div class="flex justify-between items-center gap-4 mt-2 mb-6">
+  <h1 class="text-2xl font-bold text-[#111]">Produk</h1>
+  {{ link_button("+ Tambah", url_for('admin.product_create'), "admin") }}
 </div>
 
-<div class="overflow-x-auto bg-white rounded shadow">
+<div class="overflow-x-auto bg-white rounded-xl border border-neutral-200">
 <table class="w-full text-sm">
-  <thead class="bg-gray-100 text-left">
+  <thead class="bg-neutral-50 text-left text-neutral-600">
     <tr>
       <th class="p-3">Nama</th>
       <th class="p-3">Brand</th>
@@ -23,34 +24,34 @@
   </thead>
   <tbody>
   {% for p in products %}
-    <tr class="border-t align-top {{ 'text-gray-400' if not p.is_active }}">
+    <tr class="border-t border-neutral-200 align-top {{ 'text-neutral-400' if not p.is_active }}">
       <td class="p-3">
         {{ p.name }}
-        {% if p.is_featured %}<span class="ml-1 text-xs bg-black text-white px-1.5">Pilihan</span>{% endif %}
+        {% if p.is_featured %}<span class="ml-1 rounded-full bg-[#111] px-2 text-xs text-white">Pilihan</span>{% endif %}
       </td>
       <td class="p-3">{{ p.brand.name }}</td>
       <td class="p-3">{{ p.color or '-' }}</td>
       <td class="p-3 text-right whitespace-nowrap">{{ p.price | rupiah }}</td>
       <td class="p-3 text-xs font-mono">
-        {% for s in p.sizes %}<span class="{{ 'text-red-600' if s.stock == 0 }}">{{ s.size }}:{{ s.stock }}</span>{{ ', ' if not loop.last }}{% endfor %}
+        {% for s in p.sizes %}<span class="{{ 'text-red-700' if s.stock == 0 }}">{{ s.size }}:{{ s.stock }}</span>{{ ', ' if not loop.last }}{% endfor %}
       </td>
-      <td class="p-3 text-right {{ 'text-red-600' if p.total_stock == 0 }}">{{ p.total_stock }}</td>
+      <td class="p-3 text-right {{ 'text-red-700' if p.total_stock == 0 }}">{{ p.total_stock }}</td>
       <td class="p-3">{{ 'Aktif' if p.is_active else 'Disembunyikan' }}</td>
       <td class="p-3 text-right whitespace-nowrap">
-        <a href="{{ url_for('admin.product_edit', id=p.id) }}" class="text-blue-600 mr-3">Edit</a>
+        <a href="{{ url_for('admin.product_edit', id=p.id) }}" class="font-medium text-[#111] hover:underline mr-3">Edit</a>
         <form method="post" action="{{ url_for('admin.product_toggle', id=p.id) }}" class="inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="{{ 'text-red-600' if p.is_active else 'text-green-600' }}">
+          <button class="font-medium hover:underline cursor-pointer {{ 'text-red-700' if p.is_active else 'text-green-700' }}">
             {{ 'Sembunyikan' if p.is_active else 'Tampilkan' }}
           </button>
         </form>
         {% if not p.is_active %}
-          <a href="{{ url_for('admin.product_delete', id=p.id) }}" class="text-red-700 font-medium ml-3">Hapus permanen</a>
+          <a href="{{ url_for('admin.product_delete', id=p.id) }}" class="font-medium text-red-700 hover:underline ml-3">Hapus permanen</a>
         {% endif %}
       </td>
     </tr>
   {% else %}
-    <tr><td colspan="8" class="p-6 text-center text-gray-500">Belum ada produk.</td></tr>
+    <tr><td colspan="8" class="p-6 text-center text-neutral-500">Belum ada produk.</td></tr>
   {% endfor %}
   </tbody>
 </table>

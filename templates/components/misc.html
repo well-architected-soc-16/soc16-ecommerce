@@ -1,0 +1,58 @@
+{# Komponen kecil — docs/desain-komponen.md §5, §7, §10.
+   Pakai:  {% from "components/misc.html" import product_card, brand_chip, status_badge %} #}
+
+{# §5 Kartu produk. Tombol wishlist sengaja tidak ditampilkan (fitur ditunda). #}
+{% macro product_card(p) -%}
+<a href="{{ url_for('shop.detail', slug=p.slug) }}" class="group flex flex-col p-1 rounded-xl hover:bg-neutral-100 transition-colors">
+  <div class="aspect-square rounded-lg border border-neutral-200 bg-neutral-100 flex items-center justify-center text-sm text-neutral-400">
+    Belum ada gambar
+  </div>
+  <div class="p-2 flex flex-col gap-0.5">
+    <p class="text-base font-bold text-black">{{ p.price | rupiah }}</p>
+    <h3 class="text-base text-black group-hover:text-neutral-500 transition-colors">{{ p.name }}</h3>
+    <p class="text-sm text-neutral-500">{{ p.brand.name }}</p>
+    {% if p.total_stock == 0 %}
+      <p class="text-sm text-red-700">Stok habis</p>
+    {% endif %}
+  </div>
+</a>
+{%- endmacro %}
+
+{# §7 Chip brand #}
+{% macro brand_chip(label, href, active=false) -%}
+<a href="{{ href }}" {{ 'aria-current="page"' | safe if active }}
+   class="shrink-0 inline-flex items-center rounded-full border px-4 py-1.5 font-display font-bold text-sm uppercase tracking-[0.7px] transition-colors
+          {{ 'bg-ink border-ink text-white' if active else 'bg-white border-neutral-300 text-ink hover:bg-neutral-100 active:bg-neutral-200' }}">
+  {{ label }}
+</a>
+{%- endmacro %}
+
+{# §10 Label status. Nilai DB (bahasa Inggris) → teks Indonesia + gaya.
+   Status user bukan kolom DB, pakai kunci: "active" | "inactive" | "locked". #}
+{% set _STYLE = {
+  "outline": "bg-white border-ink text-ink",
+  "grey":    "bg-neutral-200 border-neutral-200 text-ink",
+  "ink":     "bg-ink border-ink text-white",
+  "ink2":    "bg-ink-muda border-ink-muda text-white",
+  "muted":   "bg-neutral-100 border-neutral-300 text-neutral-600",
+  "danger":  "bg-red-50 border-red-200 text-red-700",
+} %}
+{% set STATUS_MAP = {
+  "pending_payment":       ("Menunggu pembayaran", "outline"),
+  "awaiting_verification": ("Menunggu verifikasi", "grey"),
+  "paid":                  ("Dibayar", "ink"),
+  "shipped":               ("Dikirim", "ink2"),
+  "completed":             ("Selesai", "muted"),
+  "cancelled":             ("Dibatalkan", "danger"),
+  "pending":               ("Menunggu verifikasi", "grey"),
+  "verified":              ("Terverifikasi", "ink"),
+  "rejected":              ("Ditolak", "danger"),
+  "active":                ("Aktif", "ink"),
+  "inactive":              ("Nonaktif", "muted"),
+  "locked":                ("Terkunci", "danger"),
+} %}
+
+{% macro status_badge(value) -%}
+  {% set text, style = STATUS_MAP.get(value, (value, "muted")) %}
+  <span class="inline-flex items-center rounded-full border px-2.5 py-[3px] font-display font-bold text-xs uppercase tracking-[0.6px] whitespace-nowrap {{ _STYLE[style] }}">{{ text }}</span>
+{%- endmacro %}

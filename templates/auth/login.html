@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% from "auth/_macros.html" import panel_gambar, kolom, tombol %}
+{% from "auth/_macros.html" import panel_gambar %}
+{% from "components/fields.html" import auth_field %}
+{% from "components/buttons.html" import submit %}
 {% block title %}Masuk{% endblock %}
 {% block content %}
 <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
@@ -11,14 +13,14 @@
 
     <form method="post" novalidate class="space-y-5">
       {{ form.hidden_tag() }}
-      {{ kolom(form.email, "email", "nama@email.com") }}
-      {{ kolom(form.password, "current-password", "Password", toggle=true) }}
-      {{ tombol(form.submit) }}
+      {{ auth_field(form.email, "email", "email", "nama@email.com") }}
+      {{ auth_field(form.password, "password", "current-password", "Password", toggle=true) }}
+      {{ submit(form.submit, "primary") }}
     </form>
 
     <p class="mt-8 text-center text-neutral-600">
       Belum punya akun?
-      <a href="{{ url_for('auth.register') }}" class="font-semibold text-black underline">Daftar</a>
+      <a href="{{ url_for('auth.register') }}" class="font-semibold text-ink underline">Daftar</a>
     </p>
   </div>
 </div>

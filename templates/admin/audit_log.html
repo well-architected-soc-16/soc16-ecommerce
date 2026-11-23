@@ -1,28 +1,34 @@
-{% extends "base.html" %}
+{% extends "admin/_layout.html" %}
+{% from "components/buttons.html" import button, link_button %}
 {% block title %}Audit Log{% endblock %}
 {% block content %}
-<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-blue-600">&larr; Dashboard</a>
-<h1 class="text-2xl font-bold mt-2 mb-4">Audit Log</h1>
+<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-[#111] hover:underline">&larr; Dashboard</a>
+<h1 class="text-2xl font-bold text-[#111] mt-2 mb-4">Audit Log</h1>
 
-<form method="get" class="flex flex-wrap gap-2 mb-4 text-sm">
-  <select name="event" class="border rounded px-3 py-2">
+<form method="get" class="flex flex-wrap items-center gap-3 mb-4">
+  <label for="f-event" class="sr-only">Event</label>
+  <div class="relative">
+  <select id="f-event" name="event" class="rounded-xl border border-neutral-400 bg-white px-4 py-2.5 text-base text-black outline-none focus:border-[#111] appearance-none pr-10 cursor-pointer">
     <option value="">Semua event</option>
     {% for e in events %}
       <option value="{{ e }}" {{ 'selected' if e == event }}>{{ e }}</option>
     {% endfor %}
   </select>
-  <input type="date" name="tanggal" value="{{ date }}" class="border rounded px-3 py-2">
-  <button class="bg-blue-600 text-white px-4 py-2 rounded">Filter</button>
+  <img src="{{ url_for('static', filename='icons/chevron.svg') }}" alt="" width="16" height="16" class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" aria-hidden="true">
+  </div>
+  <label for="f-tanggal" class="sr-only">Tanggal</label>
+  <input id="f-tanggal" type="date" name="tanggal" value="{{ date }}" class="rounded-xl border border-neutral-400 bg-white px-4 py-2.5 text-base text-black outline-none focus:border-[#111]">
+  {{ button("Filter", "admin") }}
   {% if event or date %}
-    <a href="{{ url_for('admin.audit_log') }}" class="px-4 py-2 border rounded">Reset</a>
+    {{ link_button("Reset", url_for('admin.audit_log'), "admin_outline") }}
   {% endif %}
 </form>
 
-<p class="text-sm text-gray-500 mb-2">{{ pagination.total }} kejadian &middot; waktu dalam WIB</p>
+<p class="text-sm text-neutral-500 mb-2">{{ pagination.total }} kejadian &middot; waktu dalam WIB</p>
 
-<div class="overflow-x-auto bg-white rounded shadow">
+<div class="overflow-x-auto bg-white rounded-xl border border-neutral-200">
   <table class="w-full text-sm">
-    <thead class="bg-gray-100 text-left">
+    <thead class="bg-neutral-50 text-left text-neutral-600">
       <tr>
         <th class="p-3 whitespace-nowrap">Waktu</th>
         <th class="p-3">Event</th>
@@ -34,31 +40,31 @@
     <tbody>
     {% for log in pagination.items %}
       {% set danger = log.event in ['login_failed', 'account_locked', 'register_failed', 'access_denied', 'product_deleted', 'brand_deleted'] %}
-      <tr class="border-t align-top">
+      <tr class="border-t border-neutral-200 align-top">
         <td class="p-3 whitespace-nowrap font-mono">{{ log.created_at | wib }}</td>
         <td class="p-3">
-          <span class="px-2 py-0.5 rounded text-xs font-medium {{ 'bg-red-100 text-red-700' if danger else 'bg-gray-100 text-gray-700' }}">{{ log.event }}</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ 'bg-red-50 text-red-700' if danger else 'bg-neutral-100 text-neutral-700' }}">{{ log.event }}</span>
         </td>
         <td class="p-3">{{ log.email or '-' }}</td>
         <td class="p-3 font-mono">{{ log.src_ip or '-' }}</td>
-        <td class="p-3 font-mono text-xs text-gray-600 break-all">{{ log.detail | tojson }}</td>
+        <td class="p-3 font-mono text-xs text-neutral-600 break-all">{{ log.detail | tojson }}</td>
       </tr>
     {% else %}
-      <tr><td colspan="5" class="p-6 text-center text-gray-500">Belum ada kejadian.</td></tr>
+      <tr><td colspan="5" class="p-6 text-center text-neutral-500">Belum ada kejadian.</td></tr>
     {% endfor %}
     </tbody>
   </table>
 </div>
 
 {% if pagination.pages > 1 %}
-<div class="flex justify-center gap-2 mt-6 text-sm">
+<div class="flex justify-center items-center gap-2 mt-6 text-sm">
   {% if pagination.has_prev %}
-    <a href="{{ url_for('admin.audit_log', page=pagination.prev_num, event=event or None, tanggal=date or None) }}" class="px-3 py-1 border rounded">&larr; Sebelumnya</a>
+    <a href="{{ url_for('admin.audit_log', page=pagination.prev_num, event=event or None, tanggal=date or None) }}" class="rounded-full border border-[#111] px-4 py-1.5 hover:bg-neutral-100">&larr; Sebelumnya</a>
   {% endif %}
   <span class="px-3 py-1">{{ pagination.page }} / {{ pagination.pages }}</span>
   {% if pagination.has_next %}
-    <a href="{{ url_for('admin.audit_log', page=pagination.next_num, event=event or None, tanggal=date or None) }}" class="px-3 py-1 border rounded">Berikutnya &rarr;</a>
+    <a href="{{ url_for('admin.audit_log', page=pagination.next_num, event=event or None, tanggal=date or None) }}" class="rounded-full border border-[#111] px-4 py-1.5 hover:bg-neutral-100">Berikutnya &rarr;</a>
   {% endif %}
 </div>
 {% endif %}
-{% endblock %}  
+{% endblock %}

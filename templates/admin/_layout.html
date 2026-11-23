@@ -1,0 +1,10 @@
+{# Layout halaman /admin: Header Admin + footer admin, tanpa bar pengumuman & kolom cari (§11, §12) #}
+{% extends "base.html" %}
+
+{% block header %}{% include "components/header_admin.html" %}{% endblock %}
+
+{% block footer %}
+<footer class="mt-16 bg-white border-t border-neutral-200 p-6">
+  <p class="text-center text-xs text-neutral-500">&copy; 2026 Pururuna &middot; Proyek PBL Tim 16</p>
+</footer>
+{% endblock %}

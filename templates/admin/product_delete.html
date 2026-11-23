@@ -1,13 +1,15 @@
-{% extends "base.html" %}
+{% extends "admin/_layout.html" %}
+{% from "components/fields.html" import admin_field %}
+{% from "components/buttons.html" import submit, link_button %}
 {% block title %}Hapus Produk{% endblock %}
 {% block content %}
 <div class="max-w-xl mx-auto">
-  <a href="{{ url_for('admin.product_list') }}" class="text-sm text-blue-600">&larr; Kembali ke daftar produk</a>
+  <a href="{{ url_for('admin.product_list') }}" class="text-sm text-[#111] hover:underline">&larr; Kembali ke daftar produk</a>
 
-  <div class="mt-4 bg-white rounded shadow p-6 border-t-4 border-red-600">
+  <div class="mt-4 bg-white rounded-xl border border-neutral-200 border-t-4 border-t-red-700 p-6">
     <h1 class="text-xl font-bold text-red-700 mb-4">Hapus produk permanen</h1>
 
-    <div class="bg-red-50 text-red-800 rounded p-4 text-sm space-y-2 mb-6">
+    <div class="bg-red-50 text-red-800 rounded-lg p-4 text-sm space-y-2 mb-6">
       <p>Produk <strong>{{ product.name }}</strong> beserta semua ukurannya akan dihapus permanen dan <strong>tidak bisa dikembalikan</strong>.</p>
       {% if order_count %}
         <p>Produk ini tercatat di <strong>{{ order_count }} item pesanan</strong>. Riwayat pesanan tetap tersimpan dengan nama, ukuran, warna, dan harga saat pembelian.</p>
@@ -17,19 +19,13 @@
       <p>Kalau hanya ingin menarik produk dari katalog, cukup biarkan dalam keadaan <em>Disembunyikan</em>.</p>
     </div>
 
-    <form method="post" novalidate class="space-y-4">
+    <form method="post" novalidate class="space-y-5">
       {{ form.hidden_tag() }}
-      <div>
-        {{ form.confirm.label(class="block text-sm font-medium mb-1") }}
-        <p class="text-xs text-gray-500 mb-2">Ketik persis: <code class="bg-gray-100 px-1 rounded">{{ product.name }}</code></p>
-        {{ form.confirm(class="w-full border rounded px-3 py-2", autocomplete="off") }}
-        {% for err in form.confirm.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ err }}</p>
-        {% endfor %}
-      </div>
-      <div class="flex gap-3">
-        {{ form.submit(class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700") }}
-        <a href="{{ url_for('admin.product_list') }}" class="px-4 py-2 border rounded">Batal</a>
+      <p class="text-xs text-neutral-500 -mb-3">Ketik persis: <code class="bg-neutral-100 px-1 rounded">{{ product.name }}</code></p>
+      {{ admin_field(form.confirm) }}
+      <div class="flex flex-wrap gap-3">
+        {{ submit(form.submit, "admin_danger") }}
+        {{ link_button("Batal", url_for('admin.product_list'), "admin_outline") }}
       </div>
     </form>
   </div>

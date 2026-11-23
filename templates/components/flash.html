@@ -1,0 +1,13 @@
+{# §9 Pesan flash. Dipakai lewat {% include "components/flash.html" %} #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="space-y-2 mb-6" role="status">
+    {% for category, message in messages %}
+      <div class="p-3 rounded-lg border-l-4 text-base
+                  {{ 'bg-red-50 border-red-600 text-red-800' if category == 'error' else 'bg-green-50 border-green-600 text-green-800' }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}

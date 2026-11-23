@@ -1,21 +1,17 @@
-{% extends "base.html" %}
+{% extends "admin/_layout.html" %}
+{% from "components/fields.html" import admin_field %}
+{% from "components/buttons.html" import submit, link_button %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 <div class="max-w-md mx-auto">
-  <a href="{{ url_for('admin.brand_list') }}" class="text-sm text-blue-600">&larr; Daftar brand</a>
-  <h1 class="text-2xl font-bold mt-2 mb-6">{{ title }}</h1>
-  <form method="post" novalidate class="space-y-4 bg-white p-6 rounded shadow">
+  <a href="{{ url_for('admin.brand_list') }}" class="text-sm text-[#111] hover:underline">&larr; Daftar brand</a>
+  <h1 class="text-2xl font-bold text-[#111] mt-2 mb-6">{{ title }}</h1>
+  <form method="post" novalidate class="space-y-5 bg-white p-6 rounded-xl border border-neutral-200">
     {{ form.hidden_tag() }}
-    <div>
-      {{ form.name.label(class="block text-sm font-medium mb-1") }}
-      {{ form.name(class="w-full border rounded px-3 py-2") }}
-      {% for err in form.name.errors %}
-        <p class="text-red-600 text-sm mt-1">{{ err }}</p>
-      {% endfor %}
-    </div>
-    <div class="flex gap-3">
-      {{ form.submit(class="bg-blue-600 text-white px-4 py-2 rounded") }}
-      <a href="{{ url_for('admin.brand_list') }}" class="px-4 py-2 border rounded">Batal</a>
+    {{ admin_field(form.name) }}
+    <div class="flex flex-wrap gap-3">
+      {{ submit(form.submit, "admin") }}
+      {{ link_button("Batal", url_for('admin.brand_list'), "admin_outline") }}
     </div>
   </form>
 </div>

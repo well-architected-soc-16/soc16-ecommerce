@@ -1,14 +1,16 @@
-{% extends "base.html" %}
+{% extends "admin/_layout.html" %}
+{% from "components/buttons.html" import link_button %}
 {% block title %}Brand{% endblock %}
 {% block content %}
-<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-blue-600">&larr; Dashboard</a>
-<div class="flex justify-between items-center mt-2 mb-6">
-  <h1 class="text-2xl font-bold">Brand</h1>
-  <a href="{{ url_for('admin.brand_create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">+ Tambah</a>
+<a href="{{ url_for('admin.dashboard') }}" class="text-sm text-[#111] hover:underline">&larr; Dashboard</a>
+<div class="flex justify-between items-center gap-4 mt-2 mb-6">
+  <h1 class="text-2xl font-bold text-[#111]">Brand</h1>
+  {{ link_button("+ Tambah", url_for('admin.brand_create'), "admin") }}
 </div>
 
-<table class="w-full bg-white rounded shadow text-sm">
-  <thead class="bg-gray-100 text-left">
+<div class="overflow-x-auto bg-white rounded-xl border border-neutral-200">
+<table class="w-full text-sm">
+  <thead class="bg-neutral-50 text-left text-neutral-600">
     <tr>
       <th class="p-3">Nama</th>
       <th class="p-3">Slug</th>
@@ -18,21 +20,22 @@
   </thead>
   <tbody>
   {% for b in brands %}
-    <tr class="border-t">
+    <tr class="border-t border-neutral-200">
       <td class="p-3">{{ b.name }}</td>
-      <td class="p-3 text-gray-500">{{ b.slug }}</td>
+      <td class="p-3 text-neutral-500">{{ b.slug }}</td>
       <td class="p-3">{{ b.products | length }}</td>
       <td class="p-3 text-right whitespace-nowrap">
-        <a href="{{ url_for('admin.brand_edit', id=b.id) }}" class="text-blue-600 mr-3">Edit</a>
+        <a href="{{ url_for('admin.brand_edit', id=b.id) }}" class="font-medium text-[#111] hover:underline mr-3">Edit</a>
         <form method="post" action="{{ url_for('admin.brand_delete', id=b.id) }}" class="inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="text-red-600">Hapus</button>
+          <button class="font-medium text-red-700 hover:underline cursor-pointer">Hapus</button>
         </form>
       </td>
     </tr>
   {% else %}
-    <tr><td colspan="4" class="p-6 text-center text-gray-500">Belum ada brand.</td></tr>
+    <tr><td colspan="4" class="p-6 text-center text-neutral-500">Belum ada brand.</td></tr>
   {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

@@ -96,6 +96,18 @@ def home_data():
     return {"slides": slides, "low_stock": low_stock}
 
 
+@shop_bp.app_context_processor
+def inject_brand_menu():
+    """Daftar brand untuk dropdown Brand di header toko.
+
+    Berupa fungsi supaya query hanya jalan di halaman yang benar-benar memanggilnya
+    (header toko), bukan di setiap render template (mis. halaman admin).
+    """
+    def brand_menu():
+        return db.session.execute(db.select(Brand).order_by(Brand.name)).scalars().all()
+    return {"brand_menu": brand_menu}
+
+
 @shop_bp.route("/")
 def index():
     data = catalog_data()
