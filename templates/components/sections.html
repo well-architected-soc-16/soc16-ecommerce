@@ -1,0 +1,32 @@
+{# Bagian halaman toko — docs/desain-beranda.md §2–§3.
+   Pakai:  {% from "components/sections.html" import section_heading, product_shelf %} #}
+{% from "components/misc.html" import product_card %}
+
+{# Judul seksi: judul + subjudul opsional di kiri, tautan bergaris bawah di kanan (jarak ke isi 16px) #}
+{% macro section_heading(title, subtitle=none, link_label=none, link_href=none) -%}
+<div class="flex items-end justify-between gap-4 mb-4">
+  <div>
+    <h2 class="font-display font-extrabold text-3xl uppercase tracking-[0.75px] text-ink">{{ title }}</h2>
+    {% if subtitle %}<p class="mt-0.5 text-sm text-neutral-600">{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if link_label %}
+    <a href="{{ link_href }}" class="shrink-0 whitespace-nowrap font-display font-bold text-sm uppercase tracking-[0.7px] text-ink underline underline-offset-4 hover:text-neutral-500">{{ link_label }}</a>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{# Rak produk geser: kartu 224px, gap 16px, scroll-snap, scrollbar disembunyikan.
+   Tombol ‹ › dikendalikan static/js/rak.js (tersembunyi tanpa JS, di HP, dan saat sudah di ujung). #}
+{% macro product_shelf(products, label) -%}
+<div class="relative" data-shelf>
+  <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+       data-shelf-track tabindex="0" role="region" aria-label="{{ label }}">
+    {% for p in products %}
+      <div class="w-[224px] shrink-0 snap-start">{{ product_card(p) }}</div>
+    {% endfor %}
+  </div>
+  {% set btn = "hidden absolute top-[88px] w-10 h-10 rounded-full bg-white/90 border border-neutral-200 shadow-[0_1px_3px_rgba(0,0,0,0.1)] items-center justify-center text-[22px] leading-none text-ink hover:bg-white active:bg-neutral-100" %}
+  <button type="button" class="{{ btn }} -left-4" data-shelf-prev aria-label="Geser ke kiri: {{ label }}">&lsaquo;</button>
+  <button type="button" class="{{ btn }} right-0" data-shelf-next aria-label="Geser ke kanan: {{ label }}">&rsaquo;</button>
+</div>
+{%- endmacro %}

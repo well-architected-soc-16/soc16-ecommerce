@@ -17,7 +17,7 @@
       {% for column in brands | batch(8) %}
         <ul class="w-40 shrink-0">
           {% for b in column %}
-            <li><a href="{{ url_for('shop.index', brand=b.slug) }}#produk" class="block px-3 py-2 rounded-lg text-sm text-ink hover:bg-black/5 truncate">{{ b.name }}</a></li>
+            <li><a href="{{ url_for('shop.catalog', brand=b.slug) }}" class="block px-3 py-2 rounded-lg text-sm text-ink hover:bg-black/5 truncate">{{ b.name }}</a></li>
           {% endfor %}
         </ul>
       {% endfor %}
@@ -26,7 +26,7 @@
       <p class="px-3 py-2 text-sm text-neutral-500 w-40">Belum ada brand.</p>
     {% endif %}
 
-    <a href="{{ url_for('shop.index') }}#produk"
+    <a href="{{ url_for('shop.catalog') }}"
        class="mt-2 pt-3 border-t border-black/10 flex items-center gap-2 font-display font-bold text-xs uppercase tracking-[0.6px] text-ink hover:text-neutral-500">
       Lihat semua produk <span aria-hidden="true">&rarr;</span>
     </a>

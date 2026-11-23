@@ -12,7 +12,7 @@
   let aktif = 0;
   let timer = null;
 
-  // Tampilkan tombol & titik (tanpa JS, hanya slide pertama yang terlihat)
+  // Tampilkan tombol (jika ada) & titik (tanpa JS, hanya slide pertama yang terlihat)
   carousel.querySelectorAll("[data-prev], [data-next], [data-dots]").forEach((el) => (el.hidden = false));
 
   function tampilkan(nomor) {
@@ -42,8 +42,9 @@
     timer = null;
   }
 
-  carousel.querySelector("[data-prev]").addEventListener("click", () => tampilkan(aktif - 1));
-  carousel.querySelector("[data-next]").addEventListener("click", () => tampilkan(aktif + 1));
+  // Tombol maju/mundur opsional (beranda saat ini hanya memakai titik)
+  carousel.querySelector("[data-prev]")?.addEventListener("click", () => tampilkan(aktif - 1));
+  carousel.querySelector("[data-next]")?.addEventListener("click", () => tampilkan(aktif + 1));
   dots.forEach((dot, i) => dot.addEventListener("click", () => tampilkan(i)));
 
   // Berhenti saat kursor di atas banner atau tombolnya sedang difokus keyboard
