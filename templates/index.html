@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/misc.html" import product_card, brand_chip %}
+{% from "components/buttons.html" import link_button %}
 {% block title %}{{ 'Cari: ' ~ q if q else 'Beranda' }}{% endblock %}
 
 {% block hero %}
@@ -15,16 +17,11 @@
       <div class="relative h-full flex items-end md:items-center px-16 py-10 md:px-20">
         <div class="max-w-md">
           {% if s.label %}
-            <span class="inline-block mb-3 bg-black text-white text-xs font-display font-bold uppercase tracking-wider px-2 py-1">{{ s.label }}</span>
+            <span class="inline-block mb-3 rounded-full bg-ink text-white text-xs font-display font-bold uppercase tracking-[0.6px] px-2.5 py-[3px]">{{ s.label }}</span>
           {% endif %}
           <h2 class="font-display font-extrabold text-4xl md:text-6xl uppercase leading-none">{{ s.title }}</h2>
           <p class="mt-3 text-lg md:text-2xl italic text-neutral-500">{{ s.text }}</p>
-          <a href="{{ s.link }}" class="mt-6 inline-flex items-center gap-4 bg-black text-white px-6 py-3 font-display font-bold uppercase tracking-wider hover:bg-neutral-800 active:bg-neutral-600">
-            {{ s.button }}
-            <svg viewBox="0 0 32 12" fill="none" stroke="currentColor" stroke-width="1.6" class="w-8 h-3" aria-hidden="true">
-              <path d="M0 6h30M25 1l5 5-5 5"/>
-            </svg>
-          </a>
+          {{ link_button(s.button, s.link, "pill", arrow=true, extra="mt-6") }}
         </div>
       </div>
     </div>
@@ -60,9 +57,9 @@
     <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">Stok terbatas</h2>
     <p class="text-sm text-neutral-600">Sisa sedikit, ambil sebelum habis</p>
   </div>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
     {% for p in low_stock %}
-      {% include "shop/_kartu.html" %}
+      {{ product_card(p) }}
     {% endfor %}
   </div>
 </section>
@@ -78,25 +75,21 @@
     {% if q or active_brand %}
       <p class="text-sm text-neutral-600">
         {{ pagination.total }} produk ·
-        <a href="{{ url_for('shop.index') }}" class="underline">reset</a>
+        <a href="{{ url_for('shop.index') }}#produk" class="underline">reset</a>
       </p>
     {% endif %}
   </div>
 
-  <div class="flex gap-2 mb-8 overflow-x-auto pb-1">
-    <a href="{{ url_for('shop.index', q=q or None) }}"
-       class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if not active_brand else 'hover:bg-neutral-100 active:bg-neutral-200' }}">Semua</a>
+  <div class="flex gap-2 mb-8 overflow-x-auto pb-1" aria-label="Filter brand">
+    {{ brand_chip("Semua", url_for('shop.index', q=q or None) ~ "#produk", active=not active_brand) }}
     {% for b in brands %}
-      <a href="{{ url_for('shop.index', brand=b.slug, q=q or None) }}"
-         class="shrink-0 px-4 py-1.5 border border-black font-display font-bold uppercase tracking-wider text-sm {{ 'bg-black text-white' if active_brand and active_brand.id == b.id else 'hover:bg-neutral-100 active:bg-neutral-200' }}">
-        {{ b.name }}
-      </a>
+      {{ brand_chip(b.name, url_for('shop.index', brand=b.slug, q=q or None) ~ "#produk", active=active_brand and active_brand.id == b.id) }}
     {% endfor %}
   </div>
 
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
     {% for p in pagination.items %}
-      {% include "shop/_kartu.html" %}
+      {{ product_card(p) }}
     {% else %}
       <p class="col-span-full text-neutral-500 py-10 text-center">Produk tidak ditemukan.</p>
     {% endfor %}
@@ -105,13 +98,11 @@
   {% if pagination.pages > 1 %}
   <nav class="flex justify-center items-center gap-2 mt-10" aria-label="Halaman">
     {% if pagination.has_prev %}
-      <a href="{{ url_for('shop.index', page=pagination.prev_num, q=q or None, brand=active_brand.slug if active_brand else None) }}#produk"
-         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100 active:bg-neutral-200">&larr; Sebelumnya</a>
+      {{ link_button("← Sebelumnya", url_for('shop.index', page=pagination.prev_num, q=q or None, brand=active_brand.slug if active_brand else None) ~ "#produk", "pill_outline") }}
     {% endif %}
     <span class="px-3 py-2 text-neutral-600">{{ pagination.page }} / {{ pagination.pages }}</span>
     {% if pagination.has_next %}
-      <a href="{{ url_for('shop.index', page=pagination.next_num, q=q or None, brand=active_brand.slug if active_brand else None) }}#produk"
-         class="px-4 py-2 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100 active:bg-neutral-200">Berikutnya &rarr;</a>
+      {{ link_button("Berikutnya", url_for('shop.index', page=pagination.next_num, q=q or None, brand=active_brand.slug if active_brand else None) ~ "#produk", "pill_outline", arrow=true) }}
     {% endif %}
   </nav>
   {% endif %}
@@ -127,12 +118,22 @@
       ("Harga jelas", "Harga yang tampil adalah harga yang kamu bayar."),
       ("Respons cepat", "Pesanan dan pertanyaan ditangani secepatnya."),
     ] %}
-      <div class="border border-black p-6">
+      <div class="border border-neutral-200 rounded-xl p-6">
         <p class="font-display font-bold uppercase tracking-wider text-lg">{{ heading }}</p>
         <p class="mt-2 text-neutral-600">{{ body }}</p>
       </div>
     {% endfor %}
   </div>
 </section>
+{% endif %}
+{% endblock %}
+
+{# §13 Tombol WhatsApp melayang: hanya di beranda, hanya bila WA_TOKO diisi #}
+{% block floating %}
+{% if is_home and config.WA_TOKO %}
+<a href="https://wa.me/{{ config.WA_TOKO }}" target="_blank" rel="noopener noreferrer" aria-label="Chat admin lewat WhatsApp"
+   class="fixed right-5 bottom-5 z-40 w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center shadow-[0_10px_7.5px_rgba(0,0,0,0.15)]">
+  <img src="{{ url_for('static', filename='icons/whatsapp.svg') }}" alt="" width="28" height="28" class="w-7 h-7" aria-hidden="true">
+</a>
 {% endif %}
 {% endblock %}

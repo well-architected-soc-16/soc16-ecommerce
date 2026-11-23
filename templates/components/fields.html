@@ -1,0 +1,70 @@
+{# Kolom isian — docs/desain-komponen.md §8.
+   Pakai:  {% from "components/fields.html" import auth_field, admin_field, admin_checkbox %} #}
+
+{% macro _errors(field) -%}
+  {% if field.errors %}
+    <div id="{{ field.id }}-error" class="mt-1.5 space-y-1">
+      {% for err in field.errors %}
+        <p class="flex items-center gap-1.5 text-[13px] text-red-600">
+          <img src="{{ url_for('static', filename='icons/error.svg') }}" alt="" width="16" height="16" class="w-4 h-4 shrink-0" aria-hidden="true">
+          {{ err }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+{# Halaman Masuk/Daftar: kotak abu dengan ikon kiri; password punya tombol mata.
+   icon: "email" | "password" | "name" #}
+{% macro auth_field(field, icon, autocomplete, placeholder, toggle=false) -%}
+<div>
+  {{ field.label(class="block text-sm font-semibold text-ink mb-1.5") }}
+  <div class="flex items-center gap-2.5 px-3.5 py-[13px] rounded-xl border transition-colors
+              {{ 'bg-red-50 border-red-600' if field.errors else 'bg-neutral-50 border-neutral-200 focus-within:border-ink focus-within:bg-white' }}">
+    <img src="{{ url_for('static', filename='icons/' ~ icon ~ '.svg') }}" alt="" width="20" height="20" class="w-5 h-5 shrink-0" aria-hidden="true">
+    {{ field(class="flex-1 min-w-0 bg-transparent outline-none text-base text-ink placeholder:text-neutral-400",
+             autocomplete=autocomplete, placeholder=placeholder,
+             **({"aria-invalid": "true", "aria-describedby": field.id ~ "-error"} if field.errors else {})) }}
+    {% if toggle %}
+      <button type="button" data-toggle-password="{{ field.id }}"
+              class="shrink-0 -m-1 p-1 rounded-md hover:bg-black/5 active:bg-black/10"
+              aria-label="Tampilkan password" aria-pressed="false">
+        <img src="{{ url_for('static', filename='icons/eye.svg') }}" alt="" width="20" height="20" class="w-5 h-5" aria-hidden="true">
+      </button>
+    {% endif %}
+  </div>
+  {{ _errors(field) }}
+</div>
+{%- endmacro %}
+
+{# Halaman admin: kotak putih, border abu. Select diberi chevron; textarea tinggi 120px. #}
+{% macro admin_field(field, rows=none) -%}
+<div>
+  {{ field.label(class="block text-sm font-semibold text-[#111] mb-1.5") }}
+  {% set kelas = "w-full rounded-xl border bg-white px-4 py-3 text-base text-black outline-none focus:border-[#111] "
+                 ~ ("border-red-600 bg-red-50" if field.errors else "border-neutral-400") %}
+  {% if field.type == "SelectField" %}
+    <div class="relative">
+      {{ field(class=kelas ~ " appearance-none pr-10 cursor-pointer",
+               **({"aria-invalid": "true", "aria-describedby": field.id ~ "-error"} if field.errors else {})) }}
+      <img src="{{ url_for('static', filename='icons/chevron.svg') }}" alt="" width="16" height="16"
+           class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" aria-hidden="true">
+    </div>
+  {% elif field.type == "TextAreaField" %}
+    {{ field(class=kelas ~ (" min-h-[120px]" if not rows else ""), rows=rows or 4,
+             **({"aria-invalid": "true", "aria-describedby": field.id ~ "-error"} if field.errors else {})) }}
+  {% else %}
+    {{ field(class=kelas, **({"aria-invalid": "true", "aria-describedby": field.id ~ "-error"} if field.errors else {})) }}
+  {% endif %}
+  {% if field.description %}
+    <p class="mt-1 text-xs text-neutral-500">{{ field.description }}</p>
+  {% endif %}
+  {{ _errors(field) }}
+</div>
+{%- endmacro %}
+
+{% macro admin_checkbox(field) -%}
+<label class="flex items-center gap-2 text-sm text-[#111] cursor-pointer">
+  {{ field(class="w-4 h-4 accent-[#111]") }} {{ field.label.text }}
+</label>
+{%- endmacro %}

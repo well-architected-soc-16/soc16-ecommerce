@@ -1,0 +1,42 @@
+{# §3 Menu akun (dropdown). Butuh g.user.
+   Variabel opsional: trigger = "store" (ikon user + nama) | "admin" (avatar + nama ▾, di header admin).
+   Item "Wishlist saya" sengaja tidak ditampilkan (fitur ditunda). #}
+{% set trigger = trigger | default("store") %}
+<details class="relative" data-dropdown>
+  <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-2 p-1 rounded-full hover:bg-black/5"
+           aria-label="Menu akun">
+    {% if trigger == "admin" %}
+      <span class="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center font-display font-bold text-sm text-[#111] uppercase" aria-hidden="true">{{ g.user.name[:1] }}</span>
+      <span class="hidden sm:inline text-[15px] font-semibold text-[#111] max-w-[10rem] truncate">{{ g.user.name }}</span>
+      <img src="{{ url_for('static', filename='icons/chevron.svg') }}" alt="" width="16" height="16" class="w-4 h-4" aria-hidden="true">
+    {% else %}
+      <img src="{{ url_for('static', filename='icons/user.svg') }}" alt="" width="28" height="28" class="w-7 h-7" aria-hidden="true">
+      <span class="hidden lg:inline text-sm font-medium text-ink max-w-[8rem] truncate">{{ g.user.name }}</span>
+    {% endif %}
+  </summary>
+
+  <div class="absolute right-0 mt-2 w-64 p-1.5 rounded-xl bg-white/70 backdrop-blur-[8px] border border-black/[0.06]
+              shadow-[0_4px_3px_rgba(0,0,0,0.08),0_10px_7.5px_rgba(0,0,0,0.12)] z-50">
+    <div class="px-3 py-2 border-b border-black/10 mb-1">
+      <p class="font-display font-bold text-lg uppercase text-ink leading-tight truncate">{{ g.user.name }}</p>
+      <p class="text-xs text-neutral-500 truncate">{{ g.user.email }}</p>
+      {% if g.user.is_admin %}
+        <span class="inline-block mt-1 rounded-full bg-ink px-2.5 py-px text-[11px] uppercase tracking-[0.55px] text-white">Admin</span>
+      {% endif %}
+    </div>
+
+    {% set item = "block px-3 py-2 rounded-lg text-sm text-ink hover:bg-black/5" %}
+    <a href="{{ url_for('auth.profile') }}" class="{{ item }}">Profil saya</a>
+    {% if g.user.is_admin %}
+      <a href="{{ url_for('admin.dashboard') }}" class="{{ item }}">Dashboard admin</a>
+    {% else %}
+      {# Rute pesanan belum ada (fitur 7) #}
+      <span class="block px-3 py-2 rounded-lg text-sm text-neutral-400 cursor-not-allowed" aria-disabled="true">Pesanan saya <span class="text-xs">(segera hadir)</span></span>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('auth.logout') }}" class="border-t border-black/10 mt-1 pt-1">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-red-700 hover:bg-black/5 cursor-pointer">Keluar</button>
+    </form>
+  </div>
+</details>

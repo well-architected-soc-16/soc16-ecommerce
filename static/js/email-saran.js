@@ -18,12 +18,13 @@
   const kotak = document.createElement("ul");
   Object.assign(kotak.style, {
     position: "absolute",
+    top: "100%",
     left: "0",
     right: "0",
     zIndex: "10",
     background: "#fff",
-    border: "1px solid #d1d5db",
-    borderRadius: "0.375rem",
+    border: "1px solid #e5e5e5",
+    borderRadius: "12px",
     marginTop: "0.25rem",
     boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
     display: "none",
@@ -54,9 +55,9 @@
     cocok.forEach((d) => {
       const item = document.createElement("li");
       item.textContent = namaDepan + "@" + d;
-      Object.assign(item.style, { padding: "0.5rem 0.75rem", cursor: "pointer" });
+      Object.assign(item.style, { padding: "0.5rem 0.75rem", cursor: "pointer", color: "#1D2128" });
 
-      item.addEventListener("mouseenter", () => (item.style.background = "#eff6ff"));
+      item.addEventListener("mouseenter", () => (item.style.background = "#f5f5f5"));
       item.addEventListener("mouseleave", () => (item.style.background = ""));
       item.addEventListener("mousedown", function (e) {
         e.preventDefault();
