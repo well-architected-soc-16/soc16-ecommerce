@@ -40,6 +40,15 @@ Kolom **Kerjakan**: *sendiri* = ditulis manual (titik keamanan, harus bisa diper
 | Halaman error | 404, 403, 500 | 3.11–3.13 | Tanpa stack trace; tampilkan kode kejadian yang bisa dicari di log server |
 | Tampilan HP | Semua halaman customer | 6.01–6.06 | Dikerjakan bersama tiap fitur, bukan fitur terpisah |
 
+## D. Tambahan (issue #30)
+
+Di luar 13 fitur utama. Skema (`reviews`, `wishlist_items`) sudah dibuat di #30; route & tampilan menyusul.
+
+| # | Fitur | Isi | Tabel | Layar | Kontrol keamanan | Kerjakan |
+|---|---|---|---|---|---|---|
+| 14 | Ulasan & rating — **FR-005** (kertas penilaian dosen: melihat & menulis ulasan/rating) | Lihat ulasan + rata-rata rating di detail produk; customer menulis/mengubah ulasannya sendiri (rating 1–5, komentar maks 1000 karakter) | `reviews`, `orders`, `order_items` | 3.01 | Hanya user login; usulan (perlu konfirmasi tim): **hanya pembeli** (punya pesanan `completed` berisi produk itu, simpan `order_id`); satu ulasan per user per produk (UNIQUE); ubah/hapus hanya milik sendiri (IDOR); komentar lewat Jinja autoescape, tanpa `|safe`; CSRF + POST | AI + review |
+| 15 | Wishlist | Tombol ♡ di kartu & detail produk, ikon ♡ di header, halaman "Wishlist saya" | `wishlist_items` | komponen #26 (ikon header, tombol kartu, menu akun) | Hanya user login (tamu diarahkan ke Masuk); tambah/hapus wajib POST + CSRF; daftar difilter `user_id == g.user.id` (IDOR); UNIQUE mencegah baris ganda; produk nonaktif tidak ditampilkan | AI + review |
+
 ---
 
 ## Catatan desain
@@ -47,6 +56,8 @@ Kolom **Kerjakan**: *sendiri* = ditulis manual (titik keamanan, harus bisa diper
 - **Semua nama tabel, kolom, dan nilai status berbahasa Inggris** (lihat `erd.md` v2). Teks yang dilihat pengguna tetap bahasa Indonesia.
 - **Status pesanan:** `pending_payment → awaiting_verification → paid → shipped → completed`, atau `cancelled`.
 - **Stok disimpan per ukuran** di `product_sizes`; stok total produk dihitung, tidak disimpan.
+- **Warna produk = 17 nilai tetap** (`COLORS` di `models/product.py`, kunci Inggris + label Indonesia + hex bulatan), dipakai form admin, filter katalog, dan CHECK.
+- **Ukuran EU bulat atau .5** (30–50, mis. `40.5`), diurutkan sebagai angka; konversi ke US/UK hanya perkiraan lewat fungsi `convert_size` (tanpa tabel DB).
 - **Fitur 13 adalah jembatan ke SOC.** Event yang sama dikirim agen Wazuh ke soc-siem (VLAN 30). Format log disepakati dengan anggota tim SOC.
 - **IP di `audit_logs`** diambil lewat ProxyFix + `X-Forwarded-For` (`TRUST_PROXY=1` hanya di belakang Nginx).
 - **Penguncian login disimpan di tabel `users`**, bukan di memori, supaya berlaku di semua worker Gunicorn.
@@ -60,5 +71,6 @@ Kolom **Kerjakan**: *sendiri* = ditulis manual (titik keamanan, harus bisa diper
 4. Fitur 7, 10 (riwayat & kelola pesanan)
 5. Fitur 12 (kelola user)
 6. Pendukung: dashboard hub, laporan, halaman error
+7. Tambahan #30: Ulasan (14) bersama detail produk 3.01; Wishlist (15) setelah fitur login/profil stabil
 
 Satu issue per fitur, uji keamanan tiap fitur, lalu buat catatan masalah & catatan langkah.

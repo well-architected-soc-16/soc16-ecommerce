@@ -5,6 +5,61 @@ from models._base import now_utc, sql_in
 AUDIENCES = ("men", "women", "unisex", "kids")
 PRODUCT_TYPES = ("sneakers", "running", "basketball", "casual", "sandals")
 
+# Warna produk sesuai Figma, urutan tetap (dipakai untuk pilihan form & filter katalog).
+# Nilai DB (Inggris) -> (label Indonesia, hex untuk bulatan warna)
+COLORS = {
+    "black": ("Hitam", "#111111"),
+    "white": ("Putih", "#FFFFFF"),
+    "grey": ("Abu-abu", "#9CA3AF"),
+    "cream": ("Krem", "#EDE3CF"),
+    "brown": ("Cokelat", "#7C4A2D"),
+    "red": ("Merah", "#DC2626"),
+    "maroon": ("Maroon", "#7F1D1D"),
+    "pink": ("Pink", "#F9A8D4"),
+    "orange": ("Oranye", "#F97316"),
+    "yellow": ("Kuning", "#FACC15"),
+    "green": ("Hijau", "#16A34A"),
+    "blue": ("Biru", "#2563EB"),
+    "light_blue": ("Biru muda", "#7DD3FC"),
+    "navy": ("Navy", "#1E3A8A"),
+    "purple": ("Ungu", "#7C3AED"),
+    "silver": ("Perak", "#C0C0C0"),
+    "gold": ("Emas", "#D4AF37"),
+}
+
+
+def color_label(value):
+    """Label Indonesia untuk nilai warna DB; nilai tak dikenal dikembalikan apa adanya."""
+    return COLORS[value][0] if value in COLORS else (value or "")
+
+
+def color_hex(value):
+    return COLORS[value][1] if value in COLORS else None
+
+
+# Ukuran EU: bilangan bulat atau .5, rentang 30–50 ("40", "40.5"; 50.5 tidak).
+SIZE_MIN, SIZE_MAX = 30, 50
+SIZE_PATTERN = r"^(3[0-9]|4[0-9])(\.5)?$|^50$"
+
+# Perkiraan konversi EU -> (US, UK) untuk sepatu pria/unisex. Hanya acuan tampilan,
+# bukan tabel resmi brand; ukuran anak (< 35) tidak dikonversi.
+SIZE_CONVERSION = {
+    "35": ("3.5", "3"), "35.5": ("3.5", "3"), "36": ("4", "3.5"), "36.5": ("4.5", "4"),
+    "37": ("5", "4.5"), "37.5": ("5", "4.5"), "38": ("5.5", "5"), "38.5": ("6", "5.5"),
+    "39": ("6.5", "6"), "39.5": ("6.5", "6"), "40": ("7", "6.5"), "40.5": ("7.5", "7"),
+    "41": ("8", "7.5"), "41.5": ("8", "7.5"), "42": ("8.5", "8"), "42.5": ("9", "8.5"),
+    "43": ("9.5", "9"), "43.5": ("9.5", "9"), "44": ("10", "9.5"), "44.5": ("10.5", "10"),
+    "45": ("11", "10.5"), "45.5": ("11", "10.5"), "46": ("11.5", "11"), "46.5": ("12", "11.5"),
+    "47": ("12.5", "12"), "47.5": ("12.5", "12"), "48": ("13", "12.5"), "48.5": ("13.5", "13"),
+    "49": ("14", "13.5"), "49.5": ("14", "13.5"), "50": ("14.5", "14"),
+}
+
+
+def convert_size(eu):
+    """Perkiraan ukuran US/UK dari ukuran EU, mis. "40" -> {"us": "7", "uk": "6.5"}; None jika di luar tabel."""
+    pair = SIZE_CONVERSION.get(str(eu))
+    return {"us": pair[0], "uk": pair[1]} if pair else None
+
 
 class Brand(db.Model):
     __tablename__ = "brands"
@@ -40,6 +95,8 @@ class Product(db.Model):
         db.CheckConstraint("price >= 0", name="price"),
         db.CheckConstraint(sql_in("audience", AUDIENCES), name="audience"),
         db.CheckConstraint(sql_in("product_type", PRODUCT_TYPES), name="product_type"),
+        # NULL tetap boleh (CHECK hanya gagal bila hasilnya false)
+        db.CheckConstraint(sql_in("color", tuple(COLORS)), name="color"),
         db.Index("ix_products_active_created", "is_active", "created_at"),
     )
 
@@ -53,7 +110,7 @@ class Product(db.Model):
     name = db.Column(db.String(200), nullable=False)
     slug = db.Column(db.String(220), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=False, default="")
-    color = db.Column(db.String(30), nullable=True)
+    color = db.Column(db.String(30), nullable=True)  # salah satu kunci COLORS
     audience = db.Column(db.String(10), nullable=False, default="unisex")
     product_type = db.Column(db.String(20), nullable=False, default="sneakers")
     price = db.Column(db.Numeric(12, 2), nullable=False)
@@ -69,7 +126,8 @@ class Product(db.Model):
         "ProductSize",
         back_populates="product",
         cascade="all, delete-orphan",
-        order_by="ProductSize.size",  # aman untuk ukuran EU 36-46 (sama-sama 2 digit)
+        # Urut menurut angka ("40" < "40.5" < "41"), bukan string
+        order_by=lambda: db.cast(ProductSize.size, db.Numeric),
     )
 
     @property
@@ -83,6 +141,8 @@ class ProductSize(db.Model):
     __table_args__ = (
         db.UniqueConstraint("product_id", "size", name="uq_product_sizes_product_id_size"),
         db.CheckConstraint("stock >= 0", name="stock"),
+        # Format ukuran EU (regex PostgreSQL); dilewati di dialek lain (mis. SQLite untuk uji)
+        db.CheckConstraint(f"size ~ '{SIZE_PATTERN}'", name="size").ddl_if(dialect="postgresql"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

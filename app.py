@@ -35,6 +35,11 @@ def create_app():
     def format_rupiah(value):
         return "Rp " + f"{value:,.0f}".replace(",", ".")
 
+    from models import color_label, color_hex, convert_size
+    app.add_template_filter(color_label, "color_label")   # convert eng ke ind
+    app.add_template_filter(color_hex, "color_hex")       # convert eng ke #??????
+    app.add_template_filter(convert_size, "size_us_uk")   # convert size ke uk,us
+
     @app.template_filter("wib")
     def format_wib(dt):
         return dt.astimezone(WIB).strftime("%d-%m-%Y %H:%M:%S") if dt else "-"

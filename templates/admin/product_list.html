@@ -30,7 +30,7 @@
         {% if p.is_featured %}<span class="ml-1 rounded-full bg-[#111] px-2 text-xs text-white">Pilihan</span>{% endif %}
       </td>
       <td class="p-3">{{ p.brand.name }}</td>
-      <td class="p-3">{{ p.color or '-' }}</td>
+      <td class="p-3">{{ p.color | color_label or '-' }}</td>
       <td class="p-3 text-right whitespace-nowrap">{{ p.price | rupiah }}</td>
       <td class="p-3 text-xs font-mono">
         {% for s in p.sizes %}<span class="{{ 'text-red-700' if s.stock == 0 }}">{{ s.size }}:{{ s.stock }}</span>{{ ', ' if not loop.last }}{% endfor %}
