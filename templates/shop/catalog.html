@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "components/misc.html" import product_card, brand_chip %}
+{% from "components/buttons.html" import link_button %}
+{% block title %}{{ 'Cari: ' ~ q if q else (active_brand.name if active_brand else 'Semua produk') }}{% endblock %}
+
+{# Katalog sementara: grid + pencarian + chip brand + pagination (dipindah dari beranda lama).
+   Desain katalog lengkap (filter, urutan) menyusul di issue Katalog 1.04. #}
+{% block content %}
+<section id="produk" class="scroll-mt-28">
+  <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
+    <h1 class="font-display font-extrabold text-3xl uppercase tracking-[0.75px] text-ink">
+      {% if q %}Hasil: "{{ q }}"
+      {% elif active_brand %}{{ active_brand.name }}
+      {% else %}Semua produk{% endif %}
+    </h1>
+    <p class="text-sm text-neutral-600">
+      {{ pagination.total }} produk
+      {% if q or active_brand %}· <a href="{{ url_for('shop.catalog') }}" class="underline">reset</a>{% endif %}
+    </p>
+  </div>
+
+  <div class="flex gap-2 mb-8 overflow-x-auto pb-1" aria-label="Filter brand">
+    {{ brand_chip("Semua", url_for('shop.catalog', q=q or None), active=not active_brand) }}
+    {% for b in brands %}
+      {{ brand_chip(b.name, url_for('shop.catalog', brand=b.slug, q=q or None), active=active_brand and active_brand.id == b.id) }}
+    {% endfor %}
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
+    {% for p in pagination.items %}
+      {{ product_card(p) }}
+    {% else %}
+      <p class="col-span-full text-neutral-500 py-10 text-center">Produk tidak ditemukan.</p>
+    {% endfor %}
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <nav class="flex justify-center items-center gap-2 mt-10" aria-label="Halaman">
+    {% if pagination.has_prev %}
+      {{ link_button("← Sebelumnya", url_for('shop.catalog', page=pagination.prev_num, q=q or None, brand=active_brand.slug if active_brand else None), "pill_outline") }}
+    {% endif %}
+    <span class="px-3 py-2 text-neutral-600">{{ pagination.page }} / {{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+      {{ link_button("Berikutnya", url_for('shop.catalog', page=pagination.next_num, q=q or None, brand=active_brand.slug if active_brand else None), "pill_outline", arrow=true) }}
+    {% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

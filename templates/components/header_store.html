@@ -12,14 +12,14 @@
        aria-label="Pururuna, ke beranda">Pururuna</a>
 
     {# Kolom cari — di HP turun ke baris kedua #}
-    <form method="get" action="{{ url_for('shop.index') }}" role="search" class="order-3 w-full md:order-2 md:w-auto md:flex-1">
-      {% if request.endpoint == 'shop.index' and request.args.get('brand') %}
+    <form method="get" action="{{ url_for('shop.catalog') }}" role="search" class="order-3 w-full md:order-2 md:w-auto md:flex-1">
+      {% if request.endpoint == 'shop.catalog' and request.args.get('brand') %}
         <input type="hidden" name="brand" value="{{ request.args.get('brand') }}">
       {% endif %}
       <label for="cari" class="sr-only">Cari produk</label>
       <div class="flex items-center rounded-full bg-neutral-100 border border-transparent focus-within:border-ink">
         <input id="cari" type="search" name="q" maxlength="100" placeholder="Cari produk atau brand"
-               value="{{ request.args.get('q', '') if request.endpoint == 'shop.index' else '' }}"
+               value="{{ request.args.get('q', '') if request.endpoint == 'shop.catalog' else '' }}"
                class="flex-1 min-w-0 bg-transparent px-5 py-2.5 text-base text-ink placeholder:text-neutral-400 outline-none">
         <button class="px-4 py-2.5 rounded-full hover:bg-neutral-200 active:bg-neutral-300" aria-label="Cari">
           <img src="{{ url_for('static', filename='icons/search.svg') }}" alt="" width="24" height="24" class="w-6 h-6" aria-hidden="true">
@@ -30,10 +30,9 @@
     {# Menu utama — di HP jadi baris sendiri #}
     <nav aria-label="Menu utama" class="order-4 w-full md:order-3 md:w-auto">
       <ul class="flex items-center gap-5 font-display font-bold text-sm uppercase tracking-[0.7px] text-ink">
-        <li><a href="{{ url_for('shop.index') }}#produk" class="hover:text-neutral-500">Semua</a></li>
+        <li><a href="{{ url_for('shop.catalog') }}" class="hover:text-neutral-500">Semua</a></li>
         <li>{% include "components/brand_menu.html" %}</li>
-        {# Katalog saat ini sudah urut terbaru; tautan khusus "Baru" menyusul bersama filter katalog #}
-        <li><a href="{{ url_for('shop.index') }}#produk" class="hover:text-neutral-500">Baru</a></li>
+        <li><a href="{{ url_for('shop.index') }}#terbaru" class="hover:text-neutral-500">Baru</a></li>
       </ul>
     </nav>
 

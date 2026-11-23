@@ -1,12 +1,14 @@
 {% extends "base.html" %}
-{% from "components/misc.html" import product_card, brand_chip %}
 {% from "components/buttons.html" import link_button %}
-{% block title %}{{ 'Cari: ' ~ q if q else 'Beranda' }}{% endblock %}
+{% from "components/sections.html" import section_heading, product_shelf %}
+{% block title %}Beranda{% endblock %}
 
+{# Beranda — docs/desain-beranda.md (Figma 1.01–1.03) #}
+
+{# §1 Hero carousel (5 slide) #}
 {% block hero %}
-{% if is_home %}
 <section class="w-full max-w-7xl mx-auto px-4 pt-6" aria-roledescription="carousel" aria-label="Promo Pururuna" data-carousel>
-  <div class="relative overflow-hidden bg-neutral-100 h-[420px] md:h-[480px]">
+  <div class="relative overflow-hidden rounded-2xl border border-neutral-300 bg-neutral-100 h-[360px] md:h-[480px]">
     {% for s in slides %}
     <div class="absolute inset-0 transition-opacity duration-700 {{ 'opacity-100' if loop.first else 'opacity-0 invisible' }}"
          role="group" aria-roledescription="slide" aria-label="{{ loop.index }} dari {{ slides|length }}" data-slide>
@@ -14,123 +16,122 @@
         <img src="{{ url_for('static', filename='img/banner/' ~ s.image) }}" alt=""
              class="absolute inset-0 w-full h-full object-cover" {{ '' if loop.first else 'loading=lazy' }}>
       {% endif %}
-      <div class="relative h-full flex items-end md:items-center px-16 py-10 md:px-20">
-        <div class="max-w-md">
+      {# Gradien gelap selalu dipasang supaya teks putih tetap terbaca, juga saat foto kosong #}
+      <div class="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.6),rgba(0,0,0,0.25)_55%,transparent)]" aria-hidden="true"></div>
+      <div class="relative h-full flex items-center p-6 md:px-20 md:py-10">
+        <div class="max-w-[448px]">
           {% if s.label %}
-            <span class="inline-block mb-3 rounded-full bg-ink text-white text-xs font-display font-bold uppercase tracking-[0.6px] px-2.5 py-[3px]">{{ s.label }}</span>
+            <span class="inline-block rounded-full bg-white px-3 py-1 font-display font-bold text-xs uppercase tracking-[0.6px] text-ink">{{ s.label }}</span>
           {% endif %}
-          <h2 class="font-display font-extrabold text-4xl md:text-6xl uppercase leading-none">{{ s.title }}</h2>
-          <p class="mt-3 text-lg md:text-2xl italic text-neutral-500">{{ s.text }}</p>
-          {{ link_button(s.button, s.link, "pill", arrow=true, extra="mt-6") }}
+          <h2 class="mt-3 font-display font-extrabold uppercase text-white text-[40px] leading-[40px] md:text-[60px] md:leading-[60px]">{{ s.title }}</h2>
+          <p class="mt-3 italic text-lg leading-7 md:text-2xl md:leading-8 text-neutral-200">{{ s.text }}</p>
+          {{ link_button(s.button, s.href, "pill_white", arrow=true, extra="mt-6") }}
         </div>
       </div>
     </div>
     {% endfor %}
 
-    {# Tombol & titik disembunyikan dulu; ditampilkan oleh carousel.js #}
-    <button type="button" data-prev hidden
-            class="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/90 hover:bg-white active:bg-neutral-200"
-            aria-label="Slide sebelumnya">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
-    </button>
-    <button type="button" data-next hidden
-            class="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-white/90 hover:bg-white active:bg-neutral-200"
-            aria-label="Slide berikutnya">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-    </button>
+    {# Titik disembunyikan dulu; ditampilkan oleh carousel.js. Tanpa tombol maju/mundur: pindah slide lewat titik. #}
     <div class="absolute bottom-4 right-4 flex gap-2" data-dots hidden>
       {% for s in slides %}
-        <button type="button" class="w-3 h-3 border border-black {{ 'bg-black' if loop.first else 'bg-white' }}"
+        <button type="button" class="w-3 h-3 rounded-full border border-white {{ 'bg-black' if loop.first else 'bg-white' }}"
                 aria-label="Ke slide {{ loop.index }}" {{ 'aria-current=true' if loop.first else '' }} data-dot></button>
       {% endfor %}
     </div>
   </div>
 </section>
 <script src="{{ url_for('static', filename='js/carousel.js') }}" defer></script>
-{% endif %}
 {% endblock %}
 
 {% block content %}
-{% if is_home and low_stock %}
-<section id="stok-terbatas" class="scroll-mt-28 mb-14">
-  <div class="flex items-end justify-between gap-2 mb-4">
-    <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">Stok terbatas</h2>
-    <p class="text-sm text-neutral-600">Sisa sedikit, ambil sebelum habis</p>
-  </div>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
-    {% for p in low_stock %}
-      {{ product_card(p) }}
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
+{# main sudah punya padding atas 32px; +24px = jarak 56px dari hero #}
+<div class="mt-6 space-y-14">
 
-<section id="produk" class="scroll-mt-28">
-  <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
-    <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide">
-      {% if q %}Hasil: "{{ q }}"
-      {% elif active_brand %}{{ active_brand.name }}
-      {% else %}Semua produk{% endif %}
-    </h2>
-    {% if q or active_brand %}
-      <p class="text-sm text-neutral-600">
-        {{ pagination.total }} produk ·
-        <a href="{{ url_for('shop.index') }}#produk" class="underline">reset</a>
-      </p>
-    {% endif %}
-  </div>
-
-  <div class="flex gap-2 mb-8 overflow-x-auto pb-1" aria-label="Filter brand">
-    {{ brand_chip("Semua", url_for('shop.index', q=q or None) ~ "#produk", active=not active_brand) }}
-    {% for b in brands %}
-      {{ brand_chip(b.name, url_for('shop.index', brand=b.slug, q=q or None) ~ "#produk", active=active_brand and active_brand.id == b.id) }}
-    {% endfor %}
-  </div>
-
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
-    {% for p in pagination.items %}
-      {{ product_card(p) }}
-    {% else %}
-      <p class="col-span-full text-neutral-500 py-10 text-center">Produk tidak ditemukan.</p>
-    {% endfor %}
-  </div>
-
-  {% if pagination.pages > 1 %}
-  <nav class="flex justify-center items-center gap-2 mt-10" aria-label="Halaman">
-    {% if pagination.has_prev %}
-      {{ link_button("← Sebelumnya", url_for('shop.index', page=pagination.prev_num, q=q or None, brand=active_brand.slug if active_brand else None) ~ "#produk", "pill_outline") }}
-    {% endif %}
-    <span class="px-3 py-2 text-neutral-600">{{ pagination.page }} / {{ pagination.pages }}</span>
-    {% if pagination.has_next %}
-      {{ link_button("Berikutnya", url_for('shop.index', page=pagination.next_num, q=q or None, brand=active_brand.slug if active_brand else None) ~ "#produk", "pill_outline", arrow=true) }}
-    {% endif %}
-  </nav>
+  {# §2 Belanja per brand #}
+  {% if top_brands %}
+  <section>
+    {{ section_heading("Belanja per brand", link_label="Semua brand →", link_href=url_for('shop.catalog')) }}
+    <div class="flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-7">
+      {% for b in top_brands %}
+        <a href="{{ url_for('shop.catalog', brand=b.slug) }}"
+           class="shrink-0 w-36 md:w-auto h-[72px] px-3 flex items-center justify-center text-center rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 active:bg-neutral-200 font-display font-bold text-base uppercase tracking-[0.8px] text-ink transition-colors">
+          {{ b.name }}
+        </a>
+      {% endfor %}
+    </div>
+  </section>
   {% endif %}
-</section>
 
-{% if is_home %}
-<section class="mt-16 border-t border-neutral-200 pt-12">
-  <h2 class="font-display font-extrabold text-3xl uppercase tracking-wide mb-8">Kenapa belanja di Pururuna</h2>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-    {% for heading, body in [
-      ("Pembayaran diverifikasi", "Admin mengecek setiap bukti bayar sebelum pesanan diproses."),
-      ("Akun terlindungi", "Akun terkunci otomatis setelah beberapa kali salah password."),
-      ("Harga jelas", "Harga yang tampil adalah harga yang kamu bayar."),
-      ("Respons cepat", "Pesanan dan pertanyaan ditangani secepatnya."),
-    ] %}
-      <div class="border border-neutral-200 rounded-xl p-6">
-        <p class="font-display font-bold uppercase tracking-wider text-lg">{{ heading }}</p>
-        <p class="mt-2 text-neutral-600">{{ body }}</p>
-      </div>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
+  {# §3 Rak produk geser #}
+  {% if newest %}
+  <section id="terbaru" class="scroll-mt-28">
+    {{ section_heading("Produk terbaru", link_label="Lihat semua →", link_href=url_for('shop.catalog')) }}
+    {{ product_shelf(newest, "Produk terbaru") }}
+  </section>
+  {% endif %}
+
+  {% if bestsellers %}
+  <section id="terlaris" class="scroll-mt-28">
+    {{ section_heading("Produk terlaris", "Paling banyak dibeli bulan ini", "Lihat semua →", url_for('shop.catalog')) }}
+    {{ product_shelf(bestsellers, "Produk terlaris") }}
+  </section>
+  {% endif %}
+
+  {% if featured %}
+  <section id="pilihan" class="scroll-mt-28">
+    {{ section_heading("Pilihan minggu ini", "Dikurasi admin Pururuna", "Lihat semua →", url_for('shop.catalog')) }}
+    {{ product_shelf(featured, "Pilihan minggu ini") }}
+  </section>
+  {% endif %}
+
+  {# §4 Jelajahi koleksi — hanya tautan; filternya dibuat di issue Katalog 1.04 #}
+  <section>
+    {{ section_heading("Jelajahi koleksi") }}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {% for c in collections %}
+        <a href="{{ c.href }}"
+           class="group relative overflow-hidden h-[220px] md:h-[380px] rounded-2xl border border-neutral-300 bg-neutral-100 p-4 md:p-6 flex flex-col justify-end">
+          {% if c.has_image %}
+            <img src="{{ url_for('static', filename='img/koleksi/' ~ c.image) }}" alt="" loading="lazy"
+                 class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+          {% endif %}
+          <div class="absolute inset-0 bg-black/40" aria-hidden="true"></div>
+          <div class="relative">
+            <p class="font-display font-extrabold uppercase text-white text-2xl leading-7 md:text-3xl md:leading-9">{{ c.title }}</p>
+            <p class="text-sm text-neutral-200">{{ c.text }}</p>
+            <p class="mt-1.5 font-display font-bold text-sm uppercase text-white underline underline-offset-4">Lihat &rarr;</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# §5 Belanja aman di Pururuna #}
+  <section class="!mt-16 rounded-2xl bg-neutral-100 px-6 py-10 md:px-10 md:py-12">
+    {# Halaman kebijakan belum dibuat #}
+    {{ section_heading("Belanja aman di Pururuna", link_label="Baca kebijakan lengkap →", link_href="#") }}
+    <div class="mt-4 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      {% for icon, heading, body in [
+        ("shield-check", "Pembayaran diverifikasi", "Admin mengecek setiap bukti bayar. Harga yang tampil adalah harga yang kamu bayar."),
+        ("lock", "Akun terlindungi", "Akun terkunci otomatis setelah beberapa kali salah password."),
+        ("swap", "Tukar ukuran 3 hari", "Penukaran ukuran maksimal 3 hari setelah barang diterima, kondisi utuh."),
+        ("privacy", "Privasi terjaga", "Kami hanya menyimpan nama, email, dan alamat. Password disimpan dalam bentuk hash."),
+      ] %}
+        <div>
+          <img src="{{ url_for('static', filename='icons/' ~ icon ~ '.svg') }}" alt="" width="28" height="28" class="w-7 h-7" aria-hidden="true">
+          <p class="mt-1 font-display font-bold text-base uppercase tracking-[0.8px] text-ink">{{ heading }}</p>
+          <p class="mt-1 text-sm leading-[23px] text-neutral-600">{{ body }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='js/rak.js') }}" defer></script>
 {% endblock %}
 
-{# §13 Tombol WhatsApp melayang: hanya di beranda, hanya bila WA_TOKO diisi #}
+{# §6 Tombol WhatsApp melayang: hanya di beranda, hanya bila WA_TOKO diisi #}
 {% block floating %}
-{% if is_home and config.WA_TOKO %}
+{% if config.WA_TOKO %}
 <a href="https://wa.me/{{ config.WA_TOKO }}" target="_blank" rel="noopener noreferrer" aria-label="Chat admin lewat WhatsApp"
    class="fixed right-5 bottom-5 z-40 w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center shadow-[0_10px_7.5px_rgba(0,0,0,0.15)]">
   <img src="{{ url_for('static', filename='icons/whatsapp.svg') }}" alt="" width="28" height="28" class="w-7 h-7" aria-hidden="true">
