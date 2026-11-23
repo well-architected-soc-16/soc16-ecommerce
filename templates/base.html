@@ -28,19 +28,19 @@
   <header class="sticky top-0 z-30 bg-white border-b border-neutral-200">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
 
-      <a href="{{ url_for('index') }}" class="shrink-0 font-display font-extrabold text-2xl uppercase tracking-tight leading-none" aria-label="Pururuna, ke beranda">
+      <a href="{{ url_for('shop.index') }}" class="shrink-0 font-display font-extrabold text-2xl uppercase tracking-tight leading-none" aria-label="Pururuna, ke beranda">
         Pururuna
       </a>
 
-      <form method="get" action="{{ url_for('index') }}" role="search"
+      <form method="get" action="{{ url_for('shop.index') }}" role="search"
             class="order-last w-full md:order-none md:flex-1">
-        {% if request.endpoint == 'index' and request.args.get('kategori') %}
-          <input type="hidden" name="kategori" value="{{ request.args.get('kategori') }}">
+        {% if request.endpoint == 'shop.index' and request.args.get('brand') %}
+          <input type="hidden" name="brand" value="{{ request.args.get('brand') }}">
         {% endif %}
         <label for="cari" class="sr-only">Cari produk</label>
         <div class="flex items-center bg-neutral-100 border border-transparent focus-within:border-black">
           <input id="cari" type="search" name="q" maxlength="100" placeholder="Cari"
-                 value="{{ request.args.get('q', '') if request.endpoint == 'index' else '' }}"
+                 value="{{ request.args.get('q', '') if request.endpoint == 'shop.index' else '' }}"
                  class="flex-1 bg-transparent px-4 py-2.5 text-base outline-none">
           <button class="px-4 py-2.5 hover:bg-neutral-200 active:bg-neutral-300" aria-label="Cari">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-6 h-6" aria-hidden="true">
@@ -57,18 +57,18 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="w-7 h-7" aria-hidden="true">
                 <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>
               </svg>
-              <span class="hidden lg:inline text-sm font-medium max-w-[8rem] truncate">{{ g.user.nama }}</span>
+              <span class="hidden lg:inline text-sm font-medium max-w-[8rem] truncate">{{ g.user.name }}</span>
             </summary>
             <div class="absolute right-0 mt-2 w-64 bg-white border border-black py-2 text-sm">
               <div class="px-4 py-2 border-b border-neutral-200">
-                <p class="font-display font-bold uppercase text-lg leading-tight truncate">{{ g.user.nama }}</p>
+                <p class="font-display font-bold uppercase text-lg leading-tight truncate">{{ g.user.name }}</p>
                 <p class="text-xs text-neutral-500 truncate">{{ g.user.email }}</p>
-                {% if g.user.role == 'admin' %}
+                {% if g.user.is_admin %}
                   <span class="inline-block mt-1 text-[11px] bg-black text-white px-2 uppercase tracking-wider">Admin</span>
                 {% endif %}
               </div>
-              <a href="{{ url_for('auth.profil') }}" class="block px-4 py-2 hover:underline">Profil saya</a>
-              {% if g.user.role == 'admin' %}
+              <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 hover:underline">Profil saya</a>
+              {% if g.user.is_admin %}
                 <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 hover:underline">Dashboard admin</a>
               {% endif %}
               <form method="post" action="{{ url_for('auth.logout') }}" class="border-t border-neutral-200 mt-1 pt-1">
@@ -91,9 +91,9 @@
 
   <main class="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for kategori, pesan in messages %}
-        <div class="mb-4 p-3 border-l-4 {{ 'border-red-600 bg-red-50 text-red-800' if kategori == 'error' else 'border-green-600 bg-green-50 text-green-800' }}">
-          {{ pesan }}
+      {% for category, message in messages %}
+        <div class="mb-4 p-3 border-l-4 {{ 'border-red-600 bg-red-50 text-red-800' if category == 'error' else 'border-green-600 bg-green-50 text-green-800' }}">
+          {{ message }}
         </div>
       {% endfor %}
     {% endwith %}
@@ -109,7 +109,7 @@
       <div>
         <p class="font-display font-bold uppercase tracking-wider mb-2">Belanja</p>
         <ul class="space-y-1 text-neutral-600">
-          <li><a href="{{ url_for('index') }}#produk" class="hover:text-black hover:underline">Semua produk</a></li>
+          <li><a href="{{ url_for('shop.index') }}#produk" class="hover:text-black hover:underline">Semua produk</a></li>
           {% if not g.user %}<li><a href="{{ url_for('auth.register') }}" class="hover:text-black hover:underline">Buat akun</a></li>{% endif %}
         </ul>
       </div>

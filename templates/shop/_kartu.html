@@ -3,10 +3,10 @@
     Belum ada gambar
   </div>
   <div class="p-2 flex flex-col gap-0.5">
-    <p class="font-bold">{{ p.harga | rupiah }}</p>
-    <h3 class="group-hover:underline">{{ p.nama }}</h3>
-    <p class="text-sm text-neutral-500">{{ p.category.nama }}</p>
-    {% if p.stock == 0 %}
+    <p class="font-bold">{{ p.price | rupiah }}</p>
+    <h3 class="group-hover:underline">{{ p.name }}</h3>
+    <p class="text-sm text-neutral-500">{{ p.brand.name }}{% if p.color %} &middot; {{ p.color }}{% endif %}</p>
+    {% if p.total_stock == 0 %}
       <p class="text-sm text-red-700">Stok habis</p>
     {% endif %}
   </div>

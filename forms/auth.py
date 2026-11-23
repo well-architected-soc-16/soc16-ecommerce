@@ -4,7 +4,7 @@ from wtforms.validators import DataRequired, Email, Length, EqualTo, Regexp
 
 
 class RegisterForm(FlaskForm):
-    nama = StringField("Nama", validators=[DataRequired(), Length(max=100)])
+    name = StringField("Nama", validators=[DataRequired(), Length(max=100)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
     password = PasswordField(
         "Password",
@@ -14,11 +14,12 @@ class RegisterForm(FlaskForm):
             Regexp(r"^(?=.*[A-Za-z])(?=.*\d).+$", message="Password harus berisi huruf dan angka"),
         ],
     )
-    konfirmasi = PasswordField(
+    confirm = PasswordField(
         "Konfirmasi Password",
         validators=[DataRequired(), EqualTo("password", message="Password tidak sama")],
     )
     submit = SubmitField("Daftar")
+
 
 class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])

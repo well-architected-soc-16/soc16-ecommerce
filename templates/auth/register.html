@@ -11,10 +11,10 @@
 
     <form method="post" novalidate class="space-y-5">
       {{ form.hidden_tag() }}
-      {{ kolom(form.nama, "name", "Nama lengkap") }}
+      {{ kolom(form.name, "name", "Nama lengkap") }}
       {{ kolom(form.email, "email", "nama@email.com") }}
       {{ kolom(form.password, "new-password", "Minimal 8 karakter, huruf & angka", toggle=true) }}
-      {{ kolom(form.konfirmasi, "new-password", "Ulangi password", toggle=true) }}
+      {{ kolom(form.confirm, "new-password", "Ulangi password", toggle=true) }}
       {{ tombol(form.submit) }}
     </form>
 

@@ -1,233 +1,302 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, redirect, url_for, flash, g, abort, request
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from audit import catat, WIB
 from extensions import db
-from forms.admin import CategoryForm, ProductForm, HapusProdukForm
-from models import Category, Product, User, AuditLog
+from forms.admin import BrandForm, ProductForm, DeleteProductForm
+from models import (
+    Brand, Product, ProductGroup, ProductSize, OrderItem, User, AuditLog, now_utc,
+)
 from utils import slug_unik
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
 @admin_bp.before_request
-def wajib_admin():
+def require_admin():
+    # Satu-satunya pemeriksaan hak akses admin: berlaku untuk semua route di blueprint ini
     if g.user is None:
         flash("Silakan login terlebih dahulu.", "error")
         return redirect(url_for("auth.login"))
-    if g.user.role != "admin":
+    if not g.user.is_admin:
+        catat("access_denied", user=g.user, path=request.path)
         abort(403)
 
 
 @admin_bp.route("/")
 def dashboard():
-    def hitung(query):
+    def count(query):
         return db.session.scalar(query) or 0
 
+    stock_per_product = (
+        db.select(ProductSize.product_id, db.func.sum(ProductSize.stock).label("total"))
+        .group_by(ProductSize.product_id)
+        .subquery()
+    )
     stat = {
-        "customer": hitung(db.select(db.func.count(User.id)).where(User.role == "customer")),
-        "kategori": hitung(db.select(db.func.count(Category.id))),
-        "produk_aktif": hitung(db.select(db.func.count(Product.id)).where(Product.is_active.is_(True))),
-        "stok_habis": hitung(
-            db.select(db.func.count(Product.id)).where(Product.is_active.is_(True), Product.stock == 0)
+        "customers": count(db.select(db.func.count(User.id)).where(User.role == "customer")),
+        "brands": count(db.select(db.func.count(Brand.id))),
+        "active_products": count(
+            db.select(db.func.count(Product.id)).where(Product.is_active.is_(True))
         ),
-        "login_gagal_24j": hitung(
+        "out_of_stock": count(
+            db.select(db.func.count(Product.id))
+            .join(stock_per_product, stock_per_product.c.product_id == Product.id)
+            .where(Product.is_active.is_(True), stock_per_product.c.total == 0)
+        ),
+        "failed_logins_24h": count(
             db.select(db.func.count(AuditLog.id)).where(
                 AuditLog.event == "login_failed",
-                AuditLog.created_at >= datetime.now(timezone.utc) - timedelta(hours=24),
+                AuditLog.created_at >= now_utc() - timedelta(hours=24),
             )
         ),
     }
     return render_template("admin/dashboard.html", stat=stat)
 
 
-# ---------- Kategori ----------
+# ---------- Brand ----------
 
-@admin_bp.route("/kategori")
-def kategori_list():
-    daftar = db.session.execute(
-        db.select(Category).order_by(Category.nama)
+@admin_bp.route("/brand")
+def brand_list():
+    brands = db.session.execute(
+        db.select(Brand).options(selectinload(Brand.products)).order_by(Brand.name)
     ).scalars().all()
-    return render_template("admin/kategori_list.html", daftar=daftar)
+    return render_template("admin/brand_list.html", brands=brands)
 
 
-@admin_bp.route("/kategori/baru", methods=["GET", "POST"])
-def kategori_baru():
-    form = CategoryForm()
-    if form.validate_on_submit():
-        nama = form.nama.data.strip()
-        kategori = Category(nama=nama, slug=slug_unik(Category, nama))
-        db.session.add(kategori)
-        db.session.commit()
-        catat("category_created", user=g.user, kategori_id=kategori.id, nama=nama)
-        flash(f"Kategori '{nama}' ditambahkan.", "success")
-        return redirect(url_for("admin.kategori_list"))
-    return render_template("admin/kategori_form.html", form=form, judul="Tambah Kategori")
+def _brand_name_taken(name, ignore_id=None):
+    query = db.select(Brand.id).where(db.func.lower(Brand.name) == name.lower())
+    if ignore_id:
+        query = query.where(Brand.id != ignore_id)
+    return db.session.execute(query).first() is not None
 
 
-@admin_bp.route("/kategori/<int:id>/edit", methods=["GET", "POST"])
-def kategori_edit(id):
-    kategori = db.get_or_404(Category, id)
-    form = CategoryForm(obj=kategori)
-    if form.validate_on_submit():
-        nama = form.nama.data.strip()
-        kategori.nama = nama
-        kategori.slug = slug_unik(Category, nama, abaikan_id=kategori.id)
-        db.session.commit()
-        catat("category_updated", user=g.user, kategori_id=kategori.id, nama=nama)
-        flash("Kategori diperbarui.", "success")
-        return redirect(url_for("admin.kategori_list"))
-    return render_template("admin/kategori_form.html", form=form, judul="Edit Kategori")
-
-
-@admin_bp.route("/kategori/<int:id>/hapus", methods=["POST"])
-def kategori_hapus(id):
-    kategori = db.get_or_404(Category, id)
-
-    if kategori.products:
-        flash("Kategori masih dipakai produk, tidak bisa dihapus.", "error")
-        return redirect(url_for("admin.kategori_list"))
-
-    kategori_id, nama = kategori.id, kategori.nama
-    db.session.delete(kategori)
+def _commit_brand(form):
+    """Commit perubahan brand. False kalau ditolak UNIQUE (mis. dua admin menyimpan bersamaan)."""
     try:
         db.session.commit()
+        return True
     except IntegrityError:
         db.session.rollback()
-        flash("Kategori masih dipakai produk, tidak bisa dihapus.", "error")
-        return redirect(url_for("admin.kategori_list"))
+        form.name.errors.append("Brand dengan nama ini sudah ada.")
+        return False
 
-    catat("category_deleted", user=g.user, kategori_id=kategori_id, nama=nama)
-    flash("Kategori dihapus.", "success")
-    return redirect(url_for("admin.kategori_list"))
+
+@admin_bp.route("/brand/baru", methods=["GET", "POST"])
+def brand_create():
+    form = BrandForm()
+    if form.validate_on_submit():
+        name = form.name.data.strip()
+        if _brand_name_taken(name):
+            form.name.errors.append("Brand dengan nama ini sudah ada.")
+        else:
+            brand = Brand(name=name, slug=slug_unik(Brand, name))
+            db.session.add(brand)
+            if _commit_brand(form):
+                catat("brand_created", user=g.user, brand_id=brand.id, name=name)
+                flash(f"Brand '{name}' ditambahkan.", "success")
+                return redirect(url_for("admin.brand_list"))
+    return render_template("admin/brand_form.html", form=form, title="Tambah Brand")
+
+
+@admin_bp.route("/brand/<int:id>/edit", methods=["GET", "POST"])
+def brand_edit(id):
+    brand = db.get_or_404(Brand, id)
+    form = BrandForm(obj=brand)
+    if form.validate_on_submit():
+        name = form.name.data.strip()
+        if _brand_name_taken(name, ignore_id=brand.id):
+            form.name.errors.append("Brand dengan nama ini sudah ada.")
+        else:
+            brand.name = name
+            brand.slug = slug_unik(Brand, name, abaikan_id=brand.id)
+            if _commit_brand(form):
+                catat("brand_updated", user=g.user, brand_id=brand.id, name=name)
+                flash("Brand diperbarui.", "success")
+                return redirect(url_for("admin.brand_list"))
+    return render_template("admin/brand_form.html", form=form, title="Edit Brand")
+
+
+@admin_bp.route("/brand/<int:id>/hapus", methods=["POST"])
+def brand_delete(id):
+    brand = db.get_or_404(Brand, id)
+    brand_id, name = brand.id, brand.name
+
+    db.session.delete(brand)
+    try:
+        db.session.commit()  # ditolak DB (RESTRICT) kalau masih ada produk
+    except IntegrityError:
+        db.session.rollback()
+        flash("Brand masih dipakai produk, tidak bisa dihapus.", "error")
+        return redirect(url_for("admin.brand_list"))
+
+    catat("brand_deleted", user=g.user, brand_id=brand_id, name=name)
+    flash("Brand dihapus.", "success")
+    return redirect(url_for("admin.brand_list"))
 
 
 # ---------- Produk ----------
 
-def _isi_pilihan_kategori(form):
-    daftar = db.session.execute(
-        db.select(Category).order_by(Category.nama)
-    ).scalars().all()
-    form.category_id.choices = [(k.id, k.nama) for k in daftar]
-    return daftar
+def _fill_brand_choices(form):
+    brands = db.session.execute(db.select(Brand).order_by(Brand.name)).scalars().all()
+    form.brand_id.choices = [(b.id, b.name) for b in brands]
+    return brands
+
+
+def _get_or_create_group(brand_id, name):
+    """Grup varian dicari per brand: model "Classic" milik dua brand berbeda tidak tercampur."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    group = db.session.execute(
+        db.select(ProductGroup).where(
+            ProductGroup.brand_id == brand_id,
+            db.func.lower(ProductGroup.name) == name.lower(),
+        )
+    ).scalars().first()
+    if group is None:
+        group = ProductGroup(brand_id=brand_id, name=name)
+        db.session.add(group)
+    return group
+
+
+def _apply_sizes(product, parsed):
+    """Samakan baris product_sizes dengan isi form: ubah stok, tambah ukuran baru, hapus yang hilang."""
+    existing = {s.size: s for s in product.sizes}
+    for size, stock in parsed.items():
+        if size in existing:
+            existing[size].stock = stock
+        else:
+            product.sizes.append(ProductSize(size=size, stock=stock))
+    for size, row in existing.items():
+        if size not in parsed:
+            product.sizes.remove(row)
+
+
+def _sizes_to_text(product):
+    return ", ".join(f"{s.size}:{s.stock}" for s in product.sizes)
+
+
+def _fill_product(product, form):
+    product.name = form.name.data.strip()
+    product.brand_id = form.brand_id.data
+    product.group = _get_or_create_group(form.brand_id.data, form.group_name.data)
+    product.color = (form.color.data or "").strip() or None
+    product.audience = form.audience.data
+    product.product_type = form.product_type.data
+    product.description = (form.description.data or "").strip()
+    product.price = form.price.data
+    product.is_featured = form.is_featured.data
+    product.is_active = form.is_active.data
+    _apply_sizes(product, form.parsed_sizes)
 
 
 @admin_bp.route("/produk")
-def produk_list():
-    daftar = db.session.execute(
-        db.select(Product).order_by(Product.created_at.desc())
+def product_list():
+    products = db.session.execute(
+        db.select(Product)
+        .options(selectinload(Product.sizes), selectinload(Product.brand))
+        .order_by(Product.created_at.desc())
     ).scalars().all()
-    return render_template("admin/produk_list.html", daftar=daftar)
+    return render_template("admin/product_list.html", products=products)
 
 
 @admin_bp.route("/produk/baru", methods=["GET", "POST"])
-def produk_baru():
+def product_create():
     form = ProductForm()
-    if not _isi_pilihan_kategori(form):
-        flash("Buat kategori terlebih dahulu.", "error")
-        return redirect(url_for("admin.kategori_baru"))
+    if not _fill_brand_choices(form):
+        flash("Buat brand terlebih dahulu.", "error")
+        return redirect(url_for("admin.brand_create"))
 
     if form.validate_on_submit():
-        nama = form.nama.data.strip()
-        produk = Product(
-            nama=nama,
-            slug=slug_unik(Product, nama),
-            category_id=form.category_id.data,
-            deskripsi=(form.deskripsi.data or "").strip(),
-            harga=form.harga.data,
-            stock=form.stock.data,
-            is_active=form.is_active.data,
-        )
-        db.session.add(produk)
+        # slug dibuat sebelum _fill_product supaya query cek slug tidak memicu autoflush
+        product = Product(slug=slug_unik(Product, form.name.data.strip()))
+        _fill_product(product, form)
+        db.session.add(product)
         db.session.commit()
-        catat("product_created", user=g.user, produk_id=produk.id, nama=nama)
-        flash(f"Produk '{nama}' ditambahkan.", "success")
-        return redirect(url_for("admin.produk_list"))
+        catat("product_created", user=g.user, product_id=product.id, name=product.name)
+        flash(f"Produk '{product.name}' ditambahkan.", "success")
+        return redirect(url_for("admin.product_list"))
 
-    return render_template("admin/produk_form.html", form=form, judul="Tambah Produk")
+    return render_template("admin/product_form.html", form=form, title="Tambah Produk")
 
 
 @admin_bp.route("/produk/<int:id>/edit", methods=["GET", "POST"])
-def produk_edit(id):
-    produk = db.get_or_404(Product, id)
-    form = ProductForm(obj=produk)
-    _isi_pilihan_kategori(form)
+def product_edit(id):
+    product = db.get_or_404(Product, id)
+    form = ProductForm(obj=product)
+    _fill_brand_choices(form)
+
+    if request.method == "GET":
+        form.group_name.data = product.group.name if product.group else ""
+        form.sizes.data = _sizes_to_text(product)
 
     if form.validate_on_submit():
-        nama = form.nama.data.strip()
-        produk.nama = nama
-        produk.slug = slug_unik(Product, nama, abaikan_id=produk.id)
-        produk.category_id = form.category_id.data
-        produk.deskripsi = (form.deskripsi.data or "").strip()
-        produk.harga = form.harga.data
-        produk.stock = form.stock.data
-        produk.is_active = form.is_active.data
+        _fill_product(product, form)
+        product.slug = slug_unik(Product, product.name, abaikan_id=product.id)
         db.session.commit()
-        catat("product_updated", user=g.user, produk_id=produk.id, nama=nama)
+        catat("product_updated", user=g.user, product_id=product.id, name=product.name)
         flash("Produk diperbarui.", "success")
-        return redirect(url_for("admin.produk_list"))
+        return redirect(url_for("admin.product_list"))
 
-    return render_template("admin/produk_form.html", form=form, judul="Edit Produk")
+    return render_template("admin/product_form.html", form=form, title="Edit Produk")
 
 
 @admin_bp.route("/produk/<int:id>/status", methods=["POST"])
-def produk_status(id):
-    produk = db.get_or_404(Product, id)
-    produk.is_active = not produk.is_active
+def product_toggle(id):
+    product = db.get_or_404(Product, id)
+    product.is_active = not product.is_active
     db.session.commit()
     catat(
-        "product_shown" if produk.is_active else "product_hidden",
-        user=g.user, produk_id=produk.id, nama=produk.nama,
+        "product_shown" if product.is_active else "product_hidden",
+        user=g.user, product_id=product.id, name=product.name,
     )
-    keadaan = "ditampilkan" if produk.is_active else "disembunyikan"
-    flash(f"Produk '{produk.nama}' {keadaan}.", "success")
-    return redirect(url_for("admin.produk_list"))
+    state = "ditampilkan" if product.is_active else "disembunyikan"
+    flash(f"Produk '{product.name}' {state}.", "success")
+    return redirect(url_for("admin.product_list"))
 
 
 @admin_bp.route("/produk/<int:id>/hapus", methods=["GET", "POST"])
-def produk_hapus(id):
-    produk = db.get_or_404(Product, id)
+def product_delete(id):
+    product = db.get_or_404(Product, id)
 
-    if produk.is_active:
+    if product.is_active:
         flash("Sembunyikan produk terlebih dahulu sebelum menghapus permanen.", "error")
-        return redirect(url_for("admin.produk_list"))
+        return redirect(url_for("admin.product_list"))
 
-    # Diisi setelah tabel order_items tersedia (fitur checkout)
-    jumlah_pesanan = 0
+    # Pesanan lama tetap aman (snapshot), ini hanya informasi untuk admin
+    order_count = db.session.scalar(
+        db.select(db.func.count(OrderItem.id))
+        .join(ProductSize, ProductSize.id == OrderItem.product_size_id)
+        .where(ProductSize.product_id == product.id)
+    ) or 0
 
-    form = HapusProdukForm()
+    form = DeleteProductForm()
     if form.validate_on_submit():
-        if form.konfirmasi.data.strip() != produk.nama:
-            form.konfirmasi.errors.append("Nama produk tidak cocok.")
+        if form.confirm.data.strip() != product.name:
+            form.confirm.errors.append("Nama produk tidak cocok.")
         else:
-            nama = produk.nama
-            db.session.delete(produk)
-            try:
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-                flash("Produk tidak bisa dihapus karena masih dirujuk data lain.", "error")
-                return redirect(url_for("admin.produk_list"))
-
-            catat("product_deleted", user=g.user, produk_id=id, nama=nama)
-            flash(f"Produk '{nama}' dihapus permanen.", "success")
-            return redirect(url_for("admin.produk_list"))
+            name = product.name
+            db.session.delete(product)
+            db.session.commit()
+            catat("product_deleted", user=g.user, product_id=id, name=name)
+            flash(f"Produk '{name}' dihapus permanen.", "success")
+            return redirect(url_for("admin.product_list"))
 
     return render_template(
-        "admin/produk_hapus.html",
-        produk=produk,
-        form=form,
-        jumlah_pesanan=jumlah_pesanan,
+        "admin/product_delete.html", product=product, form=form, order_count=order_count
     )
+
 
 # ---------- Audit log ----------
 
 @admin_bp.route("/audit-log")
 def audit_log():
-    event = (request.args.get("event") or "").strip()
-    tanggal = (request.args.get("tanggal") or "").strip()
+    event = (request.args.get("event") or "").strip()[:50]
+    date = (request.args.get("tanggal") or "").strip()
     page = request.args.get("page", 1, type=int)
 
     query = db.select(AuditLog).order_by(AuditLog.created_at.desc())
@@ -235,27 +304,27 @@ def audit_log():
     if event:
         query = query.where(AuditLog.event == event)
 
-    if tanggal:
+    if date:
         try:
-            awal = datetime.strptime(tanggal, "%Y-%m-%d").replace(tzinfo=WIB)
+            start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=WIB)
             query = query.where(
-                AuditLog.created_at >= awal,
-                AuditLog.created_at < awal + timedelta(days=1),
+                AuditLog.created_at >= start,
+                AuditLog.created_at < start + timedelta(days=1),
             )
         except ValueError:
             flash("Format tanggal tidak valid.", "error")
-            tanggal = ""
+            date = ""
 
-    halaman = db.paginate(query, page=page, per_page=50, error_out=False)
+    pagination = db.paginate(query, page=page, per_page=50, error_out=False)
 
-    daftar_event = db.session.execute(
+    events = db.session.execute(
         db.select(AuditLog.event).distinct().order_by(AuditLog.event)
     ).scalars().all()
 
     return render_template(
         "admin/audit_log.html",
-        halaman=halaman,
+        pagination=pagination,
         event=event,
-        tanggal=tanggal,
-        daftar_event=daftar_event,
+        date=date,
+        events=events,
     )

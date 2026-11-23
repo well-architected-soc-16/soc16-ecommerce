@@ -1,29 +1,54 @@
 {% extends "base.html" %}
-{% block title %}{{ produk.nama }}{% endblock %}
+{% block title %}{{ product.name }}{% endblock %}
 {% block content %}
-<a href="{{ url_for('index') }}" class="text-sm text-blue-600 hover:underline">&larr; Kembali ke beranda</a>
+<a href="{{ url_for('shop.index') }}" class="text-sm hover:underline">&larr; Kembali ke beranda</a>
 
-<div class="grid md:grid-cols-2 gap-8 mt-4 bg-white rounded-2xl border border-slate-200 p-6">
-  <div class="h-64 md:h-80 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+<div class="grid md:grid-cols-2 gap-8 mt-4">
+  <div class="aspect-square bg-neutral-100 flex items-center justify-center text-neutral-400">
     Belum ada gambar
   </div>
 
-  <div class="flex flex-col gap-3">
-    <a href="{{ url_for('index', kategori=produk.category.slug) }}"
-       class="self-start text-xs px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700">
-      {{ produk.category.nama }}
+  <div class="flex flex-col gap-4">
+    <a href="{{ url_for('shop.index', brand=product.brand.slug) }}"
+       class="self-start text-xs px-3 py-1 border border-black font-display font-bold uppercase tracking-wider hover:bg-neutral-100 active:bg-neutral-200">
+      {{ product.brand.name }}
     </a>
-    <h1 class="text-2xl md:text-3xl font-bold">{{ produk.nama }}</h1>
-    <p class="text-3xl font-bold text-blue-600">{{ produk.harga | rupiah }}</p>
-    <p class="text-sm {{ 'text-red-600' if produk.stock == 0 else 'text-slate-600' }}">
-      {{ 'Stok habis' if produk.stock == 0 else 'Stok tersedia: ' ~ produk.stock }}
-    </p>
+    <h1 class="font-display font-extrabold uppercase text-3xl md:text-4xl leading-tight">{{ product.name }}</h1>
+    <p class="text-2xl font-bold">{{ product.price | rupiah }}</p>
 
-    {% if produk.deskripsi %}
-      <div class="text-slate-700 whitespace-pre-line border-t border-slate-100 pt-4 leading-relaxed">{{ produk.deskripsi }}</div>
+    {% if product.color or variants %}
+    <div>
+      <p class="text-sm font-semibold mb-2">Warna: {{ product.color or '-' }}</p>
+      {% if variants %}
+      <div class="flex flex-wrap gap-2">
+        <span class="px-3 py-1.5 text-sm border border-black bg-black text-white">{{ product.color or product.name }}</span>
+        {% for v in variants %}
+          <a href="{{ url_for('shop.detail', slug=v.slug) }}"
+             class="px-3 py-1.5 text-sm border border-black hover:bg-neutral-100 active:bg-neutral-200">{{ v.color or v.name }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
     {% endif %}
 
-    <button disabled class="mt-auto bg-slate-200 text-slate-500 py-3 rounded-full cursor-not-allowed">
+    <div>
+      <p class="text-sm font-semibold mb-2">Ukuran (EU)</p>
+      <div class="flex flex-wrap gap-2">
+        {% for s in product.sizes %}
+          <span class="w-14 py-2 text-center text-sm border {{ 'border-neutral-200 text-neutral-300 line-through' if s.stock == 0 else 'border-black' }}"
+                title="{{ 'Habis' if s.stock == 0 else 'Stok ' ~ s.stock }}">{{ s.size }}</span>
+        {% endfor %}
+      </div>
+      <p class="mt-2 text-sm {{ 'text-red-700' if product.total_stock == 0 else 'text-neutral-600' }}">
+        {{ 'Stok habis' if product.total_stock == 0 else 'Total stok: ' ~ product.total_stock }}
+      </p>
+    </div>
+
+    {% if product.description %}
+      <div class="text-neutral-700 whitespace-pre-line border-t border-neutral-200 pt-4 leading-relaxed">{{ product.description }}</div>
+    {% endif %}
+
+    <button disabled class="mt-auto bg-neutral-200 text-neutral-500 py-3.5 font-display font-bold uppercase tracking-wider cursor-not-allowed">
       Tambah ke keranjang (segera hadir)
     </button>
   </div>

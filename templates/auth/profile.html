@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Profil{% endblock %}
+{% block content %}
+<div class="max-w-xl">
+  <h1 class="font-display font-extrabold uppercase text-4xl mb-6">Profil saya</h1>
+
+  <dl class="border border-black divide-y divide-neutral-200">
+    {% for label, value in [
+      ("Nama", user.name),
+      ("Email", user.email),
+      ("No. HP", user.phone or "-"),
+      ("Alamat", user.address or "-"),
+      ("Peran", "Admin" if user.is_admin else "Customer"),
+    ] %}
+      <div class="grid grid-cols-3 gap-4 px-4 py-3">
+        <dt class="text-sm font-semibold text-neutral-600">{{ label }}</dt>
+        <dd class="col-span-2 whitespace-pre-line break-words">{{ value }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+
+  <p class="mt-4 text-sm text-neutral-500">Ubah profil dan ganti password segera hadir.</p>
+</div>
+{% endblock %}

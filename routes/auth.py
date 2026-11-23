@@ -1,24 +1,24 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, flash, session, g, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, session, g
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from audit import catat
 from extensions import db
 from forms.auth import RegisterForm, LoginForm
-from models import User
+from models import User, now_utc
 
 auth_bp = Blueprint("auth", __name__)
 
-MAX_GAGAL = 5
-LAMA_KUNCI = timedelta(minutes=15)
+MAX_FAILED = 5
+LOCK_DURATION = timedelta(minutes=15)
 DUMMY_HASH = generate_password_hash("dummy-password-penyeimbang-waktu")
 
 
 @auth_bp.before_app_request
-def muat_user():
+def load_user():
     user_id = session.get("user_id")
     g.user = db.session.get(User, user_id) if user_id else None
     if g.user is not None and not g.user.is_active:
@@ -36,22 +36,8 @@ def login_required(view):
     return wrapper
 
 
-def admin_required(view):
-    @wraps(view)
-    def wrapper(*args, **kwargs):
-        if g.user is None:
-            flash("Silakan login terlebih dahulu.", "error")
-            return redirect(url_for("auth.login"))
-        if g.user.role != "admin":
-            abort(403)
-        return view(*args, **kwargs)
-    return wrapper
-
-
-def _halaman_awal(user):
-    if user.role == "admin":
-        return url_for("admin.dashboard")
-    return url_for("index")
+def _home_for(user):
+    return url_for("admin.dashboard") if user.is_admin else url_for("shop.index")
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
@@ -61,15 +47,15 @@ def register():
     if form.validate_on_submit():
         email = form.email.data.strip().lower()
 
-        sudah_ada = db.session.execute(
-            db.select(User).filter_by(email=email)
+        exists = db.session.execute(
+            db.select(User.id).filter_by(email=email)
         ).scalar_one_or_none()
-        if sudah_ada:
-            catat("register_failed", email=email, reason="email_terdaftar")
+        if exists:
+            catat("register_failed", email=email, reason="email_taken")
             flash("Email sudah terdaftar.", "error")
             return render_template("auth/register.html", form=form)
 
-        user = User(nama=form.nama.data.strip(), email=email)
+        user = User(name=form.name.data.strip(), email=email)
         user.set_password(form.password.data)
         db.session.add(user)
 
@@ -77,7 +63,7 @@ def register():
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
-            catat("register_failed", email=email, reason="email_terdaftar")
+            catat("register_failed", email=email, reason="email_taken")
             flash("Email sudah terdaftar.", "error")
             return render_template("auth/register.html", form=form)
 
@@ -91,7 +77,7 @@ def register():
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if g.user is not None:
-        return redirect(_halaman_awal(g.user))
+        return redirect(_home_for(g.user))
 
     form = LoginForm()
 
@@ -102,30 +88,33 @@ def login():
         ).scalar_one_or_none()
 
         if user is not None and user.is_locked():
-            catat("login_failed", user=user, reason="akun_terkunci")
+            catat("login_failed", user=user, reason="account_locked")
             flash("Terlalu banyak percobaan gagal. Coba lagi beberapa menit lagi.", "error")
             return render_template("auth/login.html", form=form)
 
         if user is None:
+            # Tetap hitung hash supaya waktu respons sama (cegah enumerasi email)
             check_password_hash(DUMMY_HASH, form.password.data)
-            password_benar = False
-        else:
-            password_benar = user.check_password(form.password.data)
+            catat("login_failed", email=email, reason="unknown_email")
+            flash("Email atau password salah.", "error")
+            return render_template("auth/login.html", form=form)
 
-        if not password_benar or not user.is_active:
-            if user is None:
-                catat("login_failed", email=email, reason="email_tidak_terdaftar")
-            else:
-                alasan = "akun_nonaktif" if password_benar else "password_salah"
-                user.failed_login_count += 1
-                terkunci = user.failed_login_count >= MAX_GAGAL
-                if terkunci:
-                    user.locked_until = datetime.now(timezone.utc) + LAMA_KUNCI
-                    user.failed_login_count = 0
-                db.session.commit()
-                catat("login_failed", user=user, reason=alasan)
-                if terkunci:
-                    catat("account_locked", user=user, menit=int(LAMA_KUNCI.total_seconds() // 60))
+        if not user.check_password(form.password.data):
+            user.failed_login_count += 1
+            locked = user.failed_login_count >= MAX_FAILED
+            if locked:
+                user.locked_until = now_utc() + LOCK_DURATION
+                user.failed_login_count = 0
+            db.session.commit()
+            catat("login_failed", user=user, reason="wrong_password")
+            if locked:
+                catat("account_locked", user=user, minutes=int(LOCK_DURATION.total_seconds() // 60))
+            flash("Email atau password salah.", "error")
+            return render_template("auth/login.html", form=form)
+
+        if not user.is_active:
+            # Password benar tapi akun nonaktif: tidak menambah hitungan gagal
+            catat("login_failed", user=user, reason="account_inactive")
             flash("Email atau password salah.", "error")
             return render_template("auth/login.html", form=form)
 
@@ -136,8 +125,8 @@ def login():
         session.clear()
         session["user_id"] = user.id
         catat("login_success", user=user)
-        flash(f"Selamat datang, {user.nama}.", "success")
-        return redirect(_halaman_awal(user))
+        flash(f"Selamat datang, {user.name}.", "success")
+        return redirect(_home_for(user))
 
     return render_template("auth/login.html", form=form)
 
@@ -153,5 +142,6 @@ def logout():
 
 @auth_bp.route("/profil")
 @login_required
-def profil():
-    return f"Halo {g.user.nama} ({g.user.email}) — role: {g.user.role}"
+def profile():
+    # Lewat template supaya nama di-escape otomatis (sebelumnya f-string → XSS)
+    return render_template("auth/profile.html", user=g.user)
