@@ -27,12 +27,12 @@ extensions.py     db (dengan naming_convention), migrate, csrf
 audit.py          catat(event, user=None, email=None, **detail) → DB + file JSON (dibaca Wazuh)
 utils.py          buat_slug, slug_unik
 commands.py       flask buat-admin, flask seed
-models/           user, product (Brand, ProductGroup, Product, ProductSize, COLORS, convert_size), cart,
-                  order (Order, OrderItem, Payment), review (Review), wishlist (WishlistItem), audit_log
+models/           user, product (Brand, ProductGroup, Product, ProductColor, ProductSize, COLORS, convert_size), cart,
+                  order (Order, OrderItem, Payment), review (Review, ReviewPhoto), wishlist (WishlistItem), audit_log
 routes/           auth (tanpa prefix), admin (/admin), shop (tanpa prefix, termasuk "/")
 forms/            auth, admin
 templates/        Jinja2
-docs/             erd.md + erd.png (skema v2.1), fitur.md (13 fitur + tambahan + layar Figma), desain-*.md (spesifikasi Figma)
+docs/             erd.md (skema v2.2) + erd.png (v2.1, belum #32), fitur.md (13 fitur + tambahan + layar Figma), desain-*.md (spesifikasi Figma)
 ```
 
 ## Acuan wajib
@@ -53,20 +53,26 @@ docs/             erd.md + erd.png (skema v2.1), fitur.md (13 fitur + tambahan +
   memakai kolom pertama, jadi tulis lengkap, mis. `uq_reviews_user_id_product_id`.
 - Waktu disimpan UTC (`now_utc()` dari `models`), ditampilkan WIB lewat filter `|wib`.
 
-## Data produk: warna, ukuran, ulasan, wishlist (#30)
+## Data produk: warna, ukuran, spesifikasi, ulasan, wishlist (#30, #32)
 
 - **Warna** = 17 kunci tetap di `COLORS` (`models/product.py`), urutan sesuai Figma; nilai DB bahasa Inggris →
   (label Indonesia, hex bulatan): `black` Hitam, `white` Putih, `grey` Abu-abu, `cream` Krem, `brown` Cokelat,
   `red` Merah, `maroon` Maroon, `pink` Pink, `orange` Oranye, `yellow` Kuning, `green` Hijau, `blue` Biru,
   `light_blue` Biru muda, `navy` Navy, `purple` Ungu, `silver` Perak, `gold` Emas.
-  `products.color` boleh NULL; CHECK `ck_products_color`. Di template pakai `|color_label` dan `|color_hex`,
-  jangan tampilkan nilai mentah. `order_items.color` (snapshot) tanpa CHECK.
-- **Ukuran** = EU bulat atau `.5`, rentang 30–50, disimpan teks (`"40"`, `"40.5"`; `"50.5"` tidak). Validasi di
+  Satu produk punya **1–3 warna** di tabel `product_colors` (UNIQUE produk+warna, CHECK `ck_product_colors_color`);
+  min 1 / maks 3 (`MAX_COLORS`) dicek di form, bukan DB. `products.color` sudah **tidak ada** (#32): pakai
+  `product.colors` / `product.color_keys` (urut id) dan `selectinload(Product.colors)` kalau ditampilkan di daftar.
+  Di template pakai `|color_label` dan `|color_hex` (mis. `p.color_keys | map('color_label') | join(' / ')`),
+  jangan tampilkan nilai mentah. `order_items.color` (snapshot label gabungan, maks 60) tanpa CHECK.
+- **Ukuran** = EU bulat atau `.5`, rentang 16–50 (termasuk anak), disimpan teks (`"28.5"`, `"40"`; `"50.5"` tidak). Validasi di
   `parse_sizes` (forms/admin.py) dan CHECK regex `ck_product_sizes_size` (PostgreSQL). Urutkan sebagai angka
   (`db.cast(ProductSize.size, db.Numeric)`), jangan sebagai string. US/UK hanya perkiraan lewat `convert_size()` /
   filter `|size_us_uk` (pria/unisex, EU 35–50), tanpa tabel DB.
+- **Spesifikasi** (#32): `products.material`, `fit`, `sku` (UNIQUE, kosong → NULL, huruf besar; dobel ditolak
+  dengan pesan Indonesia lewat cek awal + tangkap `IntegrityError`), `is_limited` (server_default false).
 - **`reviews`**: satu ulasan per user per produk (UNIQUE), `rating` CHECK 1–5, `comment` maks 1000 (validasi form),
-  `order_id` SET NULL. **`wishlist_items`**: UNIQUE (user, produk). Keduanya CASCADE ke user & produk; relasi ORM
+  `order_id` SET NULL, `size` snapshot. Hanya pembeli dengan pesanan `completed` (Figma 3.01).
+  **`review_photos`**: maks 3 per ulasan (form), `filename` UNIQUE, aturan upload sama dengan bukti bayar. **`wishlist_items`**: UNIQUE (user, produk). Keduanya CASCADE ke user & produk; relasi ORM
   hanya dari sisi anak. Route & template belum dibuat.
 - **Migrasi yang menambah CHECK ke tabel lama ditulis manual** (autogenerate tidak mendeteksinya); ubah data lama
   **sebelum** CHECK dibuat.
@@ -82,6 +88,8 @@ docs/             erd.md + erd.png (skema v2.1), fitur.md (13 fitur + tambahan +
 - **Snapshot** nama, ukuran, warna, harga ke `order_items` saat checkout.
 - **Upload file** (bukti bayar, gambar produk): cek ekstensi + MIME (`puremagic`) + `secure_filename` + maks 2 MB,
   simpan dengan nama acak **di luar folder static/web root**, sajikan lewat route yang cek hak akses.
+- **Info bukti bayar**: `payments.proof_original_name` (disanitasi, hanya tampilan, jangan dipakai sebagai path),
+  `proof_mime` hasil deteksi `puremagic`, `proof_size` byte (CHECK > 0).
 - **Upload ulang bukti bayar** setelah ditolak: **update baris `payments` yang sama** (`order_id` UNIQUE), jangan buat baris baru.
 - **Input query** (filter, urutan, pencarian) divalidasi dengan whitelist; pencarian pakai `icontains(..., autoescape=True)`.
 - **Output** selalu lewat template Jinja (autoescape). Jangan return f-string berisi data user. Jangan pakai `|safe` untuk data user.
@@ -107,7 +115,9 @@ docs/             erd.md + erd.png (skema v2.1), fitur.md (13 fitur + tambahan +
 
 - Filter & urutan katalog (brand, harga, ukuran, warna, untuk, jenis) **ditunda**; dikerjakan bersama tampilan katalog dari Figma.
 - `product_groups` dibatasi per brand (`brand_id`); varian warna = produk dengan `group_id` sama.
-- Ukuran memakai EU bulat atau .5 (30–50); diurutkan sebagai angka (#30).
+- Ukuran memakai EU bulat atau .5 (16–50 sejak #32); diurutkan sebagai angka.
+- Warna produk multi (1–3) di `product_colors` (#32); pembatalan pesanan menyimpan `cancelled_at` + `cancel_reason`;
+  login berhasil mengisi `users.last_login_at`.
 - Retensi audit log 90 hari (perintah `flask hapus-log-lama`) **belum dibuat**.
 - Lupa password customer butuh SMTP → **belum dibuat**.
 

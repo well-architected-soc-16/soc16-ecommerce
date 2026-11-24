@@ -8,7 +8,7 @@ from audit import catat, WIB
 from extensions import db
 from forms.admin import BrandForm, ProductForm, DeleteProductForm
 from models import (
-    Brand, Product, ProductGroup, ProductSize, OrderItem, User, AuditLog, now_utc,
+    Brand, Product, ProductColor, ProductGroup, ProductSize, OrderItem, User, AuditLog, now_utc,
 )
 from utils import slug_unik
 
@@ -176,6 +176,16 @@ def _apply_sizes(product, parsed):
             product.sizes.remove(row)
 
 
+def _apply_colors(product, keys):
+    """Samakan baris product_colors dengan pilihan form; warna yang tetap dipilih tidak dibuat ulang."""
+    for row in [c for c in product.colors if c.color not in keys]:
+        product.colors.remove(row)
+    existing = set(product.color_keys)
+    for key in keys:
+        if key not in existing:
+            product.colors.append(ProductColor(color=key))
+
+
 def _sizes_to_text(product):
     return ", ".join(f"{s.size}:{s.stock}" for s in product.sizes)
 
@@ -184,21 +194,54 @@ def _fill_product(product, form):
     product.name = form.name.data.strip()
     product.brand_id = form.brand_id.data
     product.group = _get_or_create_group(form.brand_id.data, form.group_name.data)
-    product.color = form.color.data or None  # sudah divalidasi whitelist COLORS oleh SelectField
+    product.material = form.material.data
+    product.fit = form.fit.data
+    product.sku = form.sku.data
     product.audience = form.audience.data
     product.product_type = form.product_type.data
     product.description = (form.description.data or "").strip()
     product.price = form.price.data
+    product.is_limited = form.is_limited.data
     product.is_featured = form.is_featured.data
     product.is_active = form.is_active.data
     _apply_sizes(product, form.parsed_sizes)
+    _apply_colors(product, form.color_keys.data)  # sudah divalidasi whitelist COLORS + 1–3 di form
+
+
+SKU_TAKEN = "Kode (SKU) sudah dipakai produk lain."
+
+
+def _sku_taken(sku, ignore_id=None):
+    if not sku:
+        return False
+    query = db.select(Product.id).where(Product.sku == sku)
+    if ignore_id:
+        query = query.where(Product.id != ignore_id)
+    return db.session.execute(query).first() is not None
+
+
+def _commit_product(form):
+    """Commit produk. False kalau ditolak UNIQUE sku (mis. dua admin menyimpan bersamaan)."""
+    try:
+        db.session.commit()
+        return True
+    except IntegrityError as e:
+        db.session.rollback()
+        constraint = getattr(getattr(e.orig, "diag", None), "constraint_name", "") or ""
+        if "sku" in constraint or "sku" in str(e.orig):
+            form.sku.errors.append(SKU_TAKEN)
+        else:
+            flash("Data gagal disimpan karena bentrok dengan data lain. Coba lagi.", "error")
+        return False
 
 
 @admin_bp.route("/produk")
 def product_list():
     products = db.session.execute(
         db.select(Product)
-        .options(selectinload(Product.sizes), selectinload(Product.brand))
+        .options(
+            selectinload(Product.sizes), selectinload(Product.brand), selectinload(Product.colors)
+        )
         .order_by(Product.created_at.desc())
     ).scalars().all()
     return render_template("admin/product_list.html", products=products)
@@ -212,14 +255,17 @@ def product_create():
         return redirect(url_for("admin.brand_create"))
 
     if form.validate_on_submit():
-        # slug dibuat sebelum _fill_product supaya query cek slug tidak memicu autoflush
-        product = Product(slug=slug_unik(Product, form.name.data.strip()))
-        _fill_product(product, form)
-        db.session.add(product)
-        db.session.commit()
-        catat("product_created", user=g.user, product_id=product.id, name=product.name)
-        flash(f"Produk '{product.name}' ditambahkan.", "success")
-        return redirect(url_for("admin.product_list"))
+        if _sku_taken(form.sku.data):
+            form.sku.errors.append(SKU_TAKEN)
+        else:
+            # slug dibuat sebelum _fill_product supaya query cek slug tidak memicu autoflush
+            product = Product(slug=slug_unik(Product, form.name.data.strip()))
+            _fill_product(product, form)
+            db.session.add(product)
+            if _commit_product(form):
+                catat("product_created", user=g.user, product_id=product.id, name=product.name)
+                flash(f"Produk '{product.name}' ditambahkan.", "success")
+                return redirect(url_for("admin.product_list"))
 
     return render_template("admin/product_form.html", form=form, title="Tambah Produk")
 
@@ -235,12 +281,17 @@ def product_edit(id):
         form.sizes.data = _sizes_to_text(product)
 
     if form.validate_on_submit():
-        _fill_product(product, form)
-        product.slug = slug_unik(Product, product.name, abaikan_id=product.id)
-        db.session.commit()
-        catat("product_updated", user=g.user, product_id=product.id, name=product.name)
-        flash("Produk diperbarui.", "success")
-        return redirect(url_for("admin.product_list"))
+        if _sku_taken(form.sku.data, ignore_id=product.id):
+            form.sku.errors.append(SKU_TAKEN)
+        else:
+            # slug dihitung sebelum _fill_product (query slug tidak memicu autoflush data form)
+            slug = slug_unik(Product, form.name.data.strip(), abaikan_id=product.id)
+            _fill_product(product, form)
+            product.slug = slug
+            if _commit_product(form):
+                catat("product_updated", user=g.user, product_id=product.id, name=product.name)
+                flash("Produk diperbarui.", "success")
+                return redirect(url_for("admin.product_list"))
 
     return render_template("admin/product_form.html", form=form, title="Edit Produk")
 

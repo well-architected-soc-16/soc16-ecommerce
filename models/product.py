@@ -37,9 +37,11 @@ def color_hex(value):
     return COLORS[value][1] if value in COLORS else None
 
 
-# Ukuran EU: bilangan bulat atau .5, rentang 30–50 ("40", "40.5"; 50.5 tidak).
-SIZE_MIN, SIZE_MAX = 30, 50
-SIZE_PATTERN = r"^(3[0-9]|4[0-9])(\.5)?$|^50$"
+# Ukuran EU: bilangan bulat atau .5, rentang 16–50 (termasuk anak; "28.5", "40"; 50.5 tidak).
+SIZE_MIN, SIZE_MAX = 16, 50
+SIZE_PATTERN = r"^(1[6-9]|[2-4][0-9])(\.5)?$|^50$"
+
+MAX_COLORS = 3  # maks. warna per produk, dicek di form (bukan DB)
 
 # Perkiraan konversi EU -> (US, UK) untuk sepatu pria/unisex. Hanya acuan tampilan,
 # bukan tabel resmi brand; ukuran anak (< 35) tidak dikonversi.
@@ -95,8 +97,6 @@ class Product(db.Model):
         db.CheckConstraint("price >= 0", name="price"),
         db.CheckConstraint(sql_in("audience", AUDIENCES), name="audience"),
         db.CheckConstraint(sql_in("product_type", PRODUCT_TYPES), name="product_type"),
-        # NULL tetap boleh (CHECK hanya gagal bila hasilnya false)
-        db.CheckConstraint(sql_in("color", tuple(COLORS)), name="color"),
         db.Index("ix_products_active_created", "is_active", "created_at"),
     )
 
@@ -110,11 +110,15 @@ class Product(db.Model):
     name = db.Column(db.String(200), nullable=False)
     slug = db.Column(db.String(220), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=False, default="")
-    color = db.Column(db.String(30), nullable=True)  # salah satu kunci COLORS
     audience = db.Column(db.String(10), nullable=False, default="unisex")
     product_type = db.Column(db.String(20), nullable=False, default="sneakers")
     price = db.Column(db.Numeric(12, 2), nullable=False)
     image_filename = db.Column(db.String(255), nullable=True)
+    # Spesifikasi (Figma 3.01 / 2.03)
+    material = db.Column(db.String(100), nullable=True)
+    fit = db.Column(db.String(50), nullable=True)
+    sku = db.Column(db.String(50), unique=True, nullable=True)  # NULL boleh banyak
+    is_limited = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     is_featured = db.Column(db.Boolean, nullable=False, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=now_utc)
@@ -130,10 +134,40 @@ class Product(db.Model):
         order_by=lambda: db.cast(ProductSize.size, db.Numeric),
     )
 
+    # Warna produk (1–3), urut sesuai urutan disimpan
+    colors = db.relationship(
+        "ProductColor",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by=lambda: ProductColor.id,
+    )
+
+    @property
+    def color_keys(self):
+        """Kunci warna, mis. ["black", "white"]."""
+        return [c.color for c in self.colors]
+
     @property
     def total_stock(self):
         # Stok total dihitung dari ukuran, tidak disimpan
         return sum(s.stock for s in self.sizes)
+
+
+class ProductColor(db.Model):
+    """Satu warna milik satu produk (maks. MAX_COLORS per produk, dicek di form)."""
+    __tablename__ = "product_colors"
+    __table_args__ = (
+        db.UniqueConstraint("product_id", "color", name="uq_product_colors_product_id_color"),
+        db.CheckConstraint(sql_in("color", tuple(COLORS)), name="color"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(
+        db.Integer, db.ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    color = db.Column(db.String(20), nullable=False)  # salah satu kunci COLORS
+
+    product = db.relationship("Product", back_populates="colors")
 
 
 class ProductSize(db.Model):

@@ -24,6 +24,7 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     failed_login_count = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_login_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=now_utc, onupdate=now_utc)
 

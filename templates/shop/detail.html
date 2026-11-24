@@ -11,18 +11,20 @@
 
   <div class="flex flex-col gap-4">
     <div class="self-start">{{ brand_chip(product.brand.name, url_for('shop.catalog', brand=product.brand.slug)) }}</div>
+    {% if product.is_limited %}<p class="self-start rounded-full border border-ink px-3 py-0.5 font-display font-bold text-xs uppercase tracking-[0.6px]">Edisi terbatas</p>{% endif %}
     <h1 class="font-display font-extrabold uppercase text-3xl md:text-4xl leading-tight">{{ product.name }}</h1>
     <p class="text-2xl font-bold">{{ product.price | rupiah }}</p>
 
-    {% if product.color or variants %}
+    {% set color_text = product.color_keys | map('color_label') | join(' / ') %}
+    {% if color_text or variants %}
     <div>
-      <p class="text-sm font-semibold mb-2">Warna: {{ product.color | color_label or '-' }}</p>
+      <p class="text-sm font-semibold mb-2">Warna: {{ color_text or '-' }}</p>
       {% if variants %}
       <div class="flex flex-wrap gap-2">
-        <span class="rounded-full px-4 py-1.5 text-sm border border-ink bg-ink text-white">{{ product.color | color_label or product.name }}</span>
+        <span class="rounded-full px-4 py-1.5 text-sm border border-ink bg-ink text-white">{{ color_text or product.name }}</span>
         {% for v in variants %}
           <a href="{{ url_for('shop.detail', slug=v.slug) }}"
-             class="rounded-full px-4 py-1.5 text-sm border border-neutral-300 hover:bg-neutral-100 active:bg-neutral-200">{{ v.color | color_label or v.name }}</a>
+             class="rounded-full px-4 py-1.5 text-sm border border-neutral-300 hover:bg-neutral-100 active:bg-neutral-200">{{ v.color_keys | map('color_label') | join(' / ') or v.name }}</a>
         {% endfor %}
       </div>
       {% endif %}
@@ -42,6 +44,14 @@
         {{ 'Stok habis' if product.total_stock == 0 else 'Total stok: ' ~ product.total_stock }}
       </p>
     </div>
+
+    {% if product.material or product.fit or product.sku %}
+    <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1 text-sm border-t border-neutral-200 pt-4">
+      {% for label, value in [("Bahan", product.material), ("Fit", product.fit), ("Kode (SKU)", product.sku)] if value %}
+        <dt class="text-neutral-500">{{ label }}</dt><dd>{{ value }}</dd>
+      {% endfor %}
+    </dl>
+    {% endif %}
 
     {% if product.description %}
       <div class="text-neutral-700 whitespace-pre-line border-t border-neutral-200 pt-4 leading-relaxed">{{ product.description }}</div>
