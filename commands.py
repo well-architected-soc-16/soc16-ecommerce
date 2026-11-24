@@ -31,19 +31,19 @@ def create_admin(email, name, password):
 # Data contoh untuk development: brand, model (grup varian), produk + stok per ukuran
 SEED_BRANDS = ["Adidas", "Nike", "New Balance", "Puma", "Converse"]
 SEED_PRODUCTS = [
-    # (brand, model/grup, nama, warna, untuk, jenis, harga, {ukuran: stok}, unggulan)
-    ("Adidas", "Samba OG", "Adidas Samba OG Putih", "Putih", "unisex", "sneakers", 1_700_000, {"39": 3, "40": 5, "41": 4, "42": 2}, True),
-    ("Adidas", "Samba OG", "Adidas Samba OG Hitam", "Hitam", "unisex", "sneakers", 1_700_000, {"40": 2, "41": 1, "42": 0}, False),
-    ("Adidas", None, "Adidas Ultraboost Light", "Hitam", "men", "running", 2_900_000, {"41": 4, "42": 3, "43": 2}, False),
-    ("Nike", "Air Force 1", "Nike Air Force 1 Putih", "Putih", "unisex", "sneakers", 1_550_000, {"38": 6, "39": 6, "40": 5, "41": 4}, True),
-    ("Nike", "Air Force 1", "Nike Air Force 1 Hitam", "Hitam", "unisex", "sneakers", 1_550_000, {"40": 2, "41": 1}, False),
-    ("Nike", None, "Nike Pegasus 41", "Biru", "men", "running", 2_100_000, {"41": 3, "42": 3, "43": 1}, False),
-    ("Nike", None, "Nike Giannis Immortality 4", "Merah", "men", "basketball", 1_400_000, {"42": 2, "43": 2, "44": 1}, False),
-    ("New Balance", "530", "New Balance 530 Silver", "Silver", "unisex", "sneakers", 1_600_000, {"38": 3, "39": 4, "40": 4}, True),
-    ("New Balance", "530", "New Balance 530 Putih", "Putih", "women", "sneakers", 1_600_000, {"37": 2, "38": 2}, False),
-    ("Puma", None, "Puma Palermo", "Hijau", "unisex", "casual", 1_300_000, {"39": 0, "40": 0}, False),
-    ("Converse", None, "Converse Chuck 70 Hi", "Hitam", "unisex", "casual", 1_100_000, {"38": 5, "39": 5, "40": 5, "41": 5}, False),
-    ("Converse", None, "Converse Chuck Taylor Kids", "Merah", "kids", "casual", 650_000, {"30": 3, "31": 3, "32": 2}, False),
+    # (brand, model/grup, nama, warna (kunci COLORS), untuk, jenis, harga, {ukuran EU: stok}, unggulan)
+    ("Adidas", "Samba OG", "Adidas Samba OG Putih", "white", "unisex", "sneakers", 1_700_000, {"39": 3, "40": 5, "41": 4, "42": 2}, True),
+    ("Adidas", "Samba OG", "Adidas Samba OG Hitam", "black", "unisex", "sneakers", 1_700_000, {"40": 2, "41": 1, "42": 0}, False),
+    ("Adidas", None, "Adidas Ultraboost Light", "black", "men", "running", 2_900_000, {"41": 4, "42": 3, "42.5": 2, "43": 2}, False),
+    ("Nike", "Air Force 1", "Nike Air Force 1 Putih", "white", "unisex", "sneakers", 1_550_000, {"38": 6, "39": 6, "40": 5, "41": 4}, True),
+    ("Nike", "Air Force 1", "Nike Air Force 1 Hitam", "black", "unisex", "sneakers", 1_550_000, {"40": 2, "41": 1}, False),
+    ("Nike", None, "Nike Pegasus 41", "blue", "men", "running", 2_100_000, {"41": 3, "42": 3, "43": 1}, False),
+    ("Nike", None, "Nike Giannis Immortality 4", "red", "men", "basketball", 1_400_000, {"42": 2, "43": 2, "44": 1}, False),
+    ("New Balance", "530", "New Balance 530 Silver", "silver", "unisex", "sneakers", 1_600_000, {"38": 3, "39": 4, "40": 4}, True),
+    ("New Balance", "530", "New Balance 530 Putih", "white", "women", "sneakers", 1_600_000, {"37": 2, "38": 2}, False),
+    ("Puma", None, "Puma Palermo", "green", "unisex", "casual", 1_300_000, {"39": 0, "40": 0}, False),
+    ("Converse", None, "Converse Chuck 70 Hi", "black", "unisex", "casual", 1_100_000, {"38": 5, "39": 5, "40": 5, "41": 5}, False),
+    ("Converse", None, "Converse Chuck Taylor Kids", "red", "kids", "casual", 650_000, {"30": 3, "31": 3, "32": 2}, False),
 ]
 
 

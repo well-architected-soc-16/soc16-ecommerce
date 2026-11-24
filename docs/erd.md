@@ -1,4 +1,4 @@
-# ERD — E-Commerce Pururuna (PBL RKS-316) · v2
+# ERD — E-Commerce Pururuna (PBL RKS-316) · v2.1
 
 Dokumen desain basis data aplikasi e-commerce Flask, versi rombak (v2).
 DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
@@ -6,9 +6,7 @@ DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
 **Aturan penamaan:** semua nama tabel, kolom, dan nilai status dalam bahasa Inggris (snake_case).
 Teks yang dilihat pengguna tetap bahasa Indonesia (diterjemahkan di template).
 
-![ERD v2](erd.png)
-
-> Gambar `erd.png` belum memuat `product_groups.brand_id`; diagram mermaid di bawah adalah acuan terbaru.
+![ERD v2.1](erd.png)
 
 ---
 
@@ -29,6 +27,11 @@ erDiagram
     orders ||--|{ order_items : "contains"
     product_sizes ||--o{ order_items : "ordered as"
     orders ||--o| payments : "paid via"
+    users ||--o{ reviews : "writes"
+    products ||--o{ reviews : "reviewed in"
+    orders |o--o{ reviews : "verified by"
+    users ||--o{ wishlist_items : "saves"
+    products ||--o{ wishlist_items : "saved in"
 
     users {
         int id PK
@@ -67,7 +70,7 @@ erDiagram
         string name
         string slug UK
         text description
-        string color "NULL"
+        string color "NULL, salah satu dari 17 kunci COLORS (black, white, ...)"
         string audience "men | women | unisex | kids"
         string product_type "sneakers | running | basketball | casual | sandals"
         numeric price "numeric(12,2)"
@@ -81,7 +84,7 @@ erDiagram
     product_sizes {
         int id PK
         int product_id FK
-        string size "mis. 40, 41, 42"
+        string size "EU bulat atau .5, 30-50 (mis. 40, 40.5)"
         int stock ">= 0, sumber kebenaran stok"
     }
 
@@ -151,6 +154,24 @@ erDiagram
         json detail "tanpa password"
         datetime created_at
     }
+
+    reviews {
+        int id PK
+        int product_id FK "CASCADE"
+        int user_id FK "CASCADE"
+        int order_id FK "NULL, SET NULL - pesanan asal (pembeli terverifikasi)"
+        int rating "CHECK 1-5"
+        text comment "NULL, maks 1000 (divalidasi di form)"
+        datetime created_at
+        datetime updated_at
+    }
+
+    wishlist_items {
+        int id PK
+        int user_id FK "CASCADE"
+        int product_id FK "CASCADE"
+        datetime created_at
+    }
 ```
 
 ---
@@ -171,6 +192,9 @@ erDiagram
 | `payments` | tanpa alasan tolak | + `rejection_reason`, `verified_at` | customer tahu kenapa ditolak; laporan waktu verifikasi |
 | `users` | tanpa kontak | + `phone`, `address`, `updated_at` | profil dan isi otomatis checkout |
 | `audit_logs` | `action`, `ip_address` | `event`, `email`, `src_ip`, `user_agent`, `detail` (JSON) | disamakan dengan kode audit log (PR #16) dan format log untuk Wazuh |
+| `products.color` (#30) | teks bebas ("Putih") | **17 kunci tetap** (`black`, `white`, …) + CHECK | filter Warna Figma 1.04 memakai daftar tetap dengan bulatan warna; ejaan tidak bisa beda |
+| `product_sizes.size` (#30) | EU 2 digit | EU bulat **atau .5** (30–50) + CHECK | filter Ukuran Figma punya ukuran setengah |
+| Ulasan & wishlist (#30) | tidak ada | tabel **`reviews`** dan **`wishlist_items`** | FR-005 (ulasan/rating) dan wishlist di desain |
 
 ---
 
@@ -187,7 +211,13 @@ erDiagram
 | `users.email` lowercase + `UNIQUE` | Mencegah dua akun dengan email beda huruf besar/kecil. |
 | `failed_login_count` + `locked_until` di `users` | Penguncian akun bertahan antar worker Gunicorn. |
 | `role` dicek di setiap route admin | Mencegah customer mengakses halaman admin. |
-| Nilai `status`, `audience`, `product_type`, `method` divalidasi dengan **whitelist** di server + `CHECK` constraint | Nilai di luar daftar ditolak, baik dari form maupun dari URL. |
+| Nilai `status`, `audience`, `product_type`, `method`, `color` divalidasi dengan **whitelist** di server + `CHECK` constraint | Nilai di luar daftar ditolak, baik dari form maupun dari URL. |
+| **Warna = 17 kunci tetap** di `COLORS` (`models/product.py`): kunci Inggris → (label Indonesia, hex bulatan). `products.color` boleh NULL. Label/hex di template lewat filter `color_label` / `color_hex` | Satu sumber untuk form, filter katalog, bulatan warna, dan CHECK. `order_items.color` (snapshot) tidak diberi CHECK supaya nota lama tetap utuh walau daftar warna berubah. |
+| **Ukuran EU** bulat atau `.5`, 30–50, disimpan sebagai teks (`"40.5"`); CHECK regex di PostgreSQL; diurutkan **sebagai angka** (`CAST(size AS NUMERIC)`) | `"40.5"` harus di antara `"40"` dan `"41"`; urutan string salah. |
+| Konversi EU → US/UK = **fungsi `convert_size`** dengan tabel di kode (perkiraan, pria/unisex, EU 35–50), **tanpa tabel DB** | Hanya acuan tampilan untuk tab EU/US/UK; tiap brand punya tabel sendiri sehingga tidak layak disimpan sebagai data pasti. |
+| `reviews`: satu user satu ulasan per produk (UNIQUE `user_id, product_id`), rating 1–5 (CHECK); `order_id` SET NULL | Ulasan bisa ditandai "pembeli terverifikasi" lewat pesanan asal. Hapus produk/user → ulasan ikut terhapus; hapus pesanan tidak menghapus ulasan. |
+| `wishlist_items`: UNIQUE (`user_id, product_id`), CASCADE ke user & produk | Klik ♡ dua kali tidak membuat baris ganda; produk yang dihapus hilang dari wishlist. |
+| Relasi ORM ke `reviews`/`wishlist_items` **satu arah** (dari anak saja) | Hapus produk/user lewat ORM tidak mencoba mengisi NULL di kolom NOT NULL; DB yang menjalankan CASCADE. |
 | `order_items.product_size_id` → `ON DELETE SET NULL` | Produk boleh dihapus tanpa merusak pesanan lama (snapshot tetap ada). |
 | **Hapus akun = anonimisasi**, bukan hapus baris: `email` → `deleted-{id}@deleted.invalid`, `name` → "Akun dihapus", `phone`/`address` → NULL, password diacak, `is_active=False`, keranjang dihapus | Riwayat pesanan dan laporan tetap utuh (`orders.user_id` RESTRICT), data pribadi hilang. |
 | Ganti password/email admin hanya lewat CLI server | Kalau sesi admin dibajak, penyerang tidak bisa mengambil alih akun lewat form web. |
@@ -202,12 +232,15 @@ erDiagram
 - `carts(user_id)`, `payments(order_id)`
 - `product_sizes(product_id, size)`
 - `cart_items(cart_id, product_size_id)` — produk + ukuran yang sama menambah quantity, bukan baris baru
+- `reviews(user_id, product_id)`, `wishlist_items(user_id, product_id)` — satu ulasan / satu ♡ per user per produk
 
 **Check**
 - `product_sizes.stock >= 0`, `cart_items.quantity > 0`, `order_items.quantity > 0`
 - `products.price >= 0`, `orders.total_amount >= 0`
 - `orders.status IN (...)`, `payments.status IN (...)`, `users.role IN ('customer','admin')`
 - `users.email = lower(email)`, `order_items.subtotal >= 0`
+- `products.color IN (17 kunci COLORS)` (NULL boleh), `product_sizes.size ~ '^(3[0-9]|4[0-9])(\.5)?$|^50$'`
+- `reviews.rating BETWEEN 1 AND 5`
 
 **Indeks**
 - `products(brand_id)`, `products(group_id)`, `products(is_active, created_at)` — katalog dan rak beranda
@@ -217,6 +250,7 @@ erDiagram
 - `payments(status, uploaded_at)` — antrean verifikasi
 - `order_items(order_id)`
 - `audit_logs(event, created_at)` — filter log dan retensi 90 hari
+- `reviews(product_id)` — daftar ulasan di detail produk; `wishlist_items(product_id)` — CASCADE saat produk dihapus
 
 ---
 
@@ -235,3 +269,5 @@ erDiagram
 - Setelah v2, semua perubahan skema lewat Flask-Migrate: `flask db migrate -m "..."` → `flask db upgrade`.
 - Jangan ubah tabel langsung lewat `psql`.
 - Nama constraint mengikuti `naming_convention` di `extensions.py` (`pk_`, `fk_`, `uq_`, `ck_`, `ix_`).
+- **Autogenerate Alembic tidak mendeteksi CHECK baru pada tabel yang sudah ada.** Migrasi seperti itu ditulis manual (contoh: `145edb7f0c9a_warna_dan_ukuran_produk.py`), dan data lama diubah **sebelum** CHECK ditambahkan.
+- Migrasi #30 (berurutan): `145edb7f0c9a` warna & ukuran → `8e3ad3d08f2c` tabel `reviews` → `8b941dcf18fd` tabel `wishlist_items`.

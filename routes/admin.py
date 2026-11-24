@@ -184,7 +184,7 @@ def _fill_product(product, form):
     product.name = form.name.data.strip()
     product.brand_id = form.brand_id.data
     product.group = _get_or_create_group(form.brand_id.data, form.group_name.data)
-    product.color = (form.color.data or "").strip() or None
+    product.color = form.color.data or None  # sudah divalidasi whitelist COLORS oleh SelectField
     product.audience = form.audience.data
     product.product_type = form.product_type.data
     product.description = (form.description.data or "").strip()

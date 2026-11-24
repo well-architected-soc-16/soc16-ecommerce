@@ -21,17 +21,18 @@ Dev: WSL Ubuntu, database `ecommerce`, user `ecom` (bukan superuser).
 ## Struktur
 
 ```
-app.py            create_app(), filter template (rupiah, wib)
+app.py            create_app(), filter template (rupiah, wib, color_label, color_hex, size_us_uk)
 config.py         Config dari .env (SECRET_KEY & DATABASE_URL wajib)
 extensions.py     db (dengan naming_convention), migrate, csrf
 audit.py          catat(event, user=None, email=None, **detail) → DB + file JSON (dibaca Wazuh)
 utils.py          buat_slug, slug_unik
 commands.py       flask buat-admin, flask seed
-models/           user, product (Brand, ProductGroup, Product, ProductSize), cart, order (Order, OrderItem, Payment), audit_log
+models/           user, product (Brand, ProductGroup, Product, ProductSize, COLORS, convert_size), cart,
+                  order (Order, OrderItem, Payment), review (Review), wishlist (WishlistItem), audit_log
 routes/           auth (tanpa prefix), admin (/admin), shop (tanpa prefix, termasuk "/")
 forms/            auth, admin
 templates/        Jinja2
-docs/             erd.md + erd.png (skema v2), fitur.md (13 fitur + layar Figma)
+docs/             erd.md + erd.png (skema v2.1), fitur.md (13 fitur + tambahan + layar Figma), desain-*.md (spesifikasi Figma)
 ```
 
 ## Acuan wajib
@@ -45,11 +46,30 @@ docs/             erd.md + erd.png (skema v2), fitur.md (13 fitur + layar Figma)
 - Tabel, kolom, nama fungsi, variabel Python, key `detail` audit log, dan **nilai status**: **bahasa Inggris** (snake_case).
 - **URL dan semua teks yang dilihat pengguna: bahasa Indonesia** (`/produk`, `/admin/brand`, "Stok habis").
 - Nilai status diterjemahkan di template, contoh `pending_payment` → "Menunggu bayar".
-- Whitelist nilai (ROLES, AUDIENCES, PRODUCT_TYPES, ORDER_STATUSES, PAYMENT_STATUSES, PAYMENT_METHODS) didefinisikan
+- Whitelist nilai (ROLES, AUDIENCES, PRODUCT_TYPES, COLORS, ORDER_STATUSES, PAYMENT_STATUSES, PAYMENT_METHODS) didefinisikan
   sekali di `models/` dan dipakai ulang untuk CHECK constraint (`sql_in`), pilihan form, dan validasi filter.
 - Nama constraint jangan ditulis manual lengkap; `naming_convention` di `extensions.py` yang membentuknya
-  (cukup `db.CheckConstraint("price >= 0", name="price")`).
+  (cukup `db.CheckConstraint("price >= 0", name="price")`). **Kecuali UNIQUE/Index multi-kolom**: konvensinya hanya
+  memakai kolom pertama, jadi tulis lengkap, mis. `uq_reviews_user_id_product_id`.
 - Waktu disimpan UTC (`now_utc()` dari `models`), ditampilkan WIB lewat filter `|wib`.
+
+## Data produk: warna, ukuran, ulasan, wishlist (#30)
+
+- **Warna** = 17 kunci tetap di `COLORS` (`models/product.py`), urutan sesuai Figma; nilai DB bahasa Inggris →
+  (label Indonesia, hex bulatan): `black` Hitam, `white` Putih, `grey` Abu-abu, `cream` Krem, `brown` Cokelat,
+  `red` Merah, `maroon` Maroon, `pink` Pink, `orange` Oranye, `yellow` Kuning, `green` Hijau, `blue` Biru,
+  `light_blue` Biru muda, `navy` Navy, `purple` Ungu, `silver` Perak, `gold` Emas.
+  `products.color` boleh NULL; CHECK `ck_products_color`. Di template pakai `|color_label` dan `|color_hex`,
+  jangan tampilkan nilai mentah. `order_items.color` (snapshot) tanpa CHECK.
+- **Ukuran** = EU bulat atau `.5`, rentang 30–50, disimpan teks (`"40"`, `"40.5"`; `"50.5"` tidak). Validasi di
+  `parse_sizes` (forms/admin.py) dan CHECK regex `ck_product_sizes_size` (PostgreSQL). Urutkan sebagai angka
+  (`db.cast(ProductSize.size, db.Numeric)`), jangan sebagai string. US/UK hanya perkiraan lewat `convert_size()` /
+  filter `|size_us_uk` (pria/unisex, EU 35–50), tanpa tabel DB.
+- **`reviews`**: satu ulasan per user per produk (UNIQUE), `rating` CHECK 1–5, `comment` maks 1000 (validasi form),
+  `order_id` SET NULL. **`wishlist_items`**: UNIQUE (user, produk). Keduanya CASCADE ke user & produk; relasi ORM
+  hanya dari sisi anak. Route & template belum dibuat.
+- **Migrasi yang menambah CHECK ke tabel lama ditulis manual** (autogenerate tidak mendeteksinya); ubah data lama
+  **sebelum** CHECK dibuat.
 
 ## Aturan keamanan (wajib di setiap fitur)
 
@@ -87,7 +107,7 @@ docs/             erd.md + erd.png (skema v2), fitur.md (13 fitur + layar Figma)
 
 - Filter & urutan katalog (brand, harga, ukuran, warna, untuk, jenis) **ditunda**; dikerjakan bersama tampilan katalog dari Figma.
 - `product_groups` dibatasi per brand (`brand_id`); varian warna = produk dengan `group_id` sama.
-- Ukuran memakai EU 2 digit (30–50); urutan string aman untuk rentang ini.
+- Ukuran memakai EU bulat atau .5 (30–50); diurutkan sebagai angka (#30).
 - Retensi audit log 90 hari (perintah `flask hapus-log-lama`) **belum dibuat**.
 - Lupa password customer butuh SMTP → **belum dibuat**.
 
