@@ -120,6 +120,7 @@ def login():
 
         user.failed_login_count = 0
         user.locked_until = None
+        user.last_login_at = now_utc()
         db.session.commit()
 
         session.clear()

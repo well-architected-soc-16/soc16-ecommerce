@@ -41,6 +41,8 @@ class Order(db.Model):
     paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
     shipped_at = db.Column(db.DateTime(timezone=True), nullable=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    cancelled_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    cancel_reason = db.Column(db.Text, nullable=True)
 
     user = db.relationship("User")
     items = db.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
@@ -67,7 +69,7 @@ class OrderItem(db.Model):
     # Snapshot saat checkout: nota tidak berubah walau produk diedit/dihapus
     product_name = db.Column(db.String(200), nullable=False)
     size = db.Column(db.String(10), nullable=False)
-    color = db.Column(db.String(30), nullable=True)
+    color = db.Column(db.String(60), nullable=True)  # label, mis. "Hitam / Kuning / Putih"
     unit_price = db.Column(db.Numeric(12, 2), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     subtotal = db.Column(db.Numeric(12, 2), nullable=False)
@@ -82,6 +84,7 @@ class Payment(db.Model):
         db.CheckConstraint(sql_in("status", PAYMENT_STATUSES), name="status"),
         db.CheckConstraint(sql_in("method", PAYMENT_METHODS), name="method"),
         db.CheckConstraint("amount >= 0", name="amount"),
+        db.CheckConstraint("proof_size > 0", name="proof_size"),
         db.Index("ix_payments_status_uploaded", "status", "uploaded_at"),
     )
 
@@ -91,6 +94,10 @@ class Payment(db.Model):
     )
     method = db.Column(db.String(20), nullable=False)
     proof_filename = db.Column(db.String(255), nullable=False)  # nama acak, di luar web root
+    # Info file asli, hanya untuk tampilan admin. Nama asli sudah disanitasi, tidak dipakai sebagai path.
+    proof_original_name = db.Column(db.String(255), nullable=True)
+    proof_mime = db.Column(db.String(50), nullable=True)
+    proof_size = db.Column(db.Integer, nullable=True)  # byte
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     status = db.Column(db.String(20), nullable=False, default="pending")
     rejection_reason = db.Column(db.Text, nullable=True)

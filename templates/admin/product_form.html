@@ -1,5 +1,5 @@
 {% extends "admin/_layout.html" %}
-{% from "components/fields.html" import admin_field, admin_checkbox %}
+{% from "components/fields.html" import admin_field, admin_checkbox, admin_checkbox_group %}
 {% from "components/buttons.html" import submit, link_button %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
@@ -9,13 +9,17 @@
   <form method="post" novalidate class="space-y-5 bg-white p-6 rounded-xl border border-neutral-200">
     {{ form.hidden_tag() }}
 
-    {% for field in [form.name, form.brand_id, form.group_name, form.color, form.audience,
-                     form.product_type, form.price] %}
+    {% for field in [form.name, form.brand_id, form.group_name] %}
+      {{ admin_field(field) }}
+    {% endfor %}
+    {{ admin_checkbox_group(form.color_keys, swatch=true) }}
+    {% for field in [form.audience, form.product_type, form.price, form.sku, form.material, form.fit] %}
       {{ admin_field(field) }}
     {% endfor %}
     {{ admin_field(form.sizes, rows=3) }}
     {{ admin_field(form.description) }}
 
+    {{ admin_checkbox(form.is_limited) }}
     {{ admin_checkbox(form.is_featured) }}
     {{ admin_checkbox(form.is_active) }}
 

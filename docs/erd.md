@@ -1,4 +1,4 @@
-# ERD — E-Commerce Pururuna (PBL RKS-316) · v2.1
+# ERD — E-Commerce Pururuna (PBL RKS-316) · v2.2
 
 Dokumen desain basis data aplikasi e-commerce Flask, versi rombak (v2).
 DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
@@ -7,6 +7,9 @@ DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
 Teks yang dilihat pengguna tetap bahasa Indonesia (diterjemahkan di template).
 
 ![ERD v2.1](erd.png)
+
+> Gambar `erd.png` masih v2.1 (sebelum #32): belum memuat `product_colors`, `review_photos`, dan kolom baru #32.
+> Diagram mermaid di bawah adalah acuan terbaru.
 
 ---
 
@@ -22,6 +25,7 @@ erDiagram
     brands ||--o{ product_groups : "owns"
     product_groups ||--o{ products : "color variants"
     products ||--|{ product_sizes : "has sizes"
+    products ||--|{ product_colors : "has colors"
     carts ||--o{ cart_items : "contains"
     product_sizes ||--o{ cart_items : "added as"
     orders ||--|{ order_items : "contains"
@@ -32,6 +36,7 @@ erDiagram
     orders |o--o{ reviews : "verified by"
     users ||--o{ wishlist_items : "saves"
     products ||--o{ wishlist_items : "saved in"
+    reviews ||--o{ review_photos : "has photos"
 
     users {
         int id PK
@@ -44,6 +49,7 @@ erDiagram
         bool is_active
         int failed_login_count
         datetime locked_until "NULL jika tidak terkunci"
+        datetime last_login_at "NULL, login berhasil terakhir"
         datetime created_at
         datetime updated_at
     }
@@ -70,11 +76,14 @@ erDiagram
         string name
         string slug UK
         text description
-        string color "NULL, salah satu dari 17 kunci COLORS (black, white, ...)"
         string audience "men | women | unisex | kids"
         string product_type "sneakers | running | basketball | casual | sandals"
         numeric price "numeric(12,2)"
         string image_filename "NULL, hasil secure_filename"
+        string material "NULL"
+        string fit "NULL"
+        string sku UK "NULL, huruf besar"
+        bool is_limited "edisi terbatas, default false"
         bool is_featured "rak Pilihan Kami"
         bool is_active
         datetime created_at
@@ -84,8 +93,14 @@ erDiagram
     product_sizes {
         int id PK
         int product_id FK
-        string size "EU bulat atau .5, 30-50 (mis. 40, 40.5)"
+        string size "EU bulat atau .5, 16-50 (mis. 28.5, 40)"
         int stock ">= 0, sumber kebenaran stok"
+    }
+
+    product_colors {
+        int id PK
+        int product_id FK "CASCADE"
+        string color "salah satu dari 17 kunci COLORS; 1-3 per produk (form)"
     }
 
     carts {
@@ -117,6 +132,8 @@ erDiagram
         datetime paid_at "NULL"
         datetime shipped_at "NULL"
         datetime completed_at "NULL"
+        datetime cancelled_at "NULL"
+        text cancel_reason "NULL"
     }
 
     order_items {
@@ -125,7 +142,7 @@ erDiagram
         int product_size_id FK "NULL jika produk dihapus"
         string product_name "snapshot"
         string size "snapshot"
-        string color "snapshot, NULL"
+        string color "snapshot label, NULL, maks 60 (mis. Hitam / Putih)"
         numeric unit_price "snapshot harga"
         int quantity
         numeric subtotal
@@ -135,7 +152,10 @@ erDiagram
         int id PK
         int order_id FK "UNIQUE"
         string method "bank_transfer | ewallet"
-        string proof_filename "divalidasi MIME + maks 2 MB"
+        string proof_filename "nama acak, divalidasi MIME + maks 2 MB"
+        string proof_original_name "NULL, tampilan saja, disanitasi"
+        string proof_mime "NULL"
+        int proof_size "NULL, byte, > 0"
         numeric amount
         string status "pending | verified | rejected"
         text rejection_reason "NULL"
@@ -160,6 +180,7 @@ erDiagram
         int product_id FK "CASCADE"
         int user_id FK "CASCADE"
         int order_id FK "NULL, SET NULL - pesanan asal (pembeli terverifikasi)"
+        string size "NULL, snapshot ukuran yang dibeli"
         int rating "CHECK 1-5"
         text comment "NULL, maks 1000 (divalidasi di form)"
         datetime created_at
@@ -170,6 +191,13 @@ erDiagram
         int id PK
         int user_id FK "CASCADE"
         int product_id FK "CASCADE"
+        datetime created_at
+    }
+
+    review_photos {
+        int id PK
+        int review_id FK "CASCADE"
+        string filename UK "nama acak, di luar web root; maks 3 per ulasan (form)"
         datetime created_at
     }
 ```
@@ -195,6 +223,14 @@ erDiagram
 | `products.color` (#30) | teks bebas ("Putih") | **17 kunci tetap** (`black`, `white`, …) + CHECK | filter Warna Figma 1.04 memakai daftar tetap dengan bulatan warna; ejaan tidak bisa beda |
 | `product_sizes.size` (#30) | EU 2 digit | EU bulat **atau .5** (30–50) + CHECK | filter Ukuran Figma punya ukuran setengah |
 | Ulasan & wishlist (#30) | tidak ada | tabel **`reviews`** dan **`wishlist_items`** | FR-005 (ulasan/rating) dan wishlist di desain |
+| Warna (#32) | `products.color` (satu warna) | tabel **`product_colors`** (1–3 warna per produk); `products.color` dihapus | sepatu sering multi-warna (Figma 1.04 & 3.01); filter warna cukup cocok salah satu |
+| `order_items.color` (#32) | `varchar(30)` | `varchar(60)` | snapshot label gabungan, mis. "Hitam / Kuning / Putih" |
+| Spesifikasi (#32) | tidak ada | `products.material`, `fit`, `sku` (UNIQUE), `is_limited` | tabel spesifikasi di detail 3.01, form 2.03, koleksi "Edisi terbatas" |
+| `product_sizes.size` (#32) | EU 30–50 | EU **16–50** (bulat atau .5) | ukuran anak |
+| Ulasan (#32) | rating + komentar | + `reviews.size`, tabel **`review_photos`** | ulasan Figma 3.01 menampilkan ukuran yang dibeli dan foto |
+| `payments` (#32) | hanya `proof_filename` | + `proof_original_name`, `proof_mime`, `proof_size` | info file untuk admin saat verifikasi |
+| `orders` (#32) | tanpa data batal | + `cancelled_at`, `cancel_reason` | riwayat & kelola pesanan menampilkan alasan batal |
+| `users` (#32) | — | + `last_login_at` | kelola user (4.06) menampilkan login terakhir |
 
 ---
 
@@ -212,8 +248,12 @@ erDiagram
 | `failed_login_count` + `locked_until` di `users` | Penguncian akun bertahan antar worker Gunicorn. |
 | `role` dicek di setiap route admin | Mencegah customer mengakses halaman admin. |
 | Nilai `status`, `audience`, `product_type`, `method`, `color` divalidasi dengan **whitelist** di server + `CHECK` constraint | Nilai di luar daftar ditolak, baik dari form maupun dari URL. |
-| **Warna = 17 kunci tetap** di `COLORS` (`models/product.py`): kunci Inggris → (label Indonesia, hex bulatan). `products.color` boleh NULL. Label/hex di template lewat filter `color_label` / `color_hex` | Satu sumber untuk form, filter katalog, bulatan warna, dan CHECK. `order_items.color` (snapshot) tidak diberi CHECK supaya nota lama tetap utuh walau daftar warna berubah. |
-| **Ukuran EU** bulat atau `.5`, 30–50, disimpan sebagai teks (`"40.5"`); CHECK regex di PostgreSQL; diurutkan **sebagai angka** (`CAST(size AS NUMERIC)`) | `"40.5"` harus di antara `"40"` dan `"41"`; urutan string salah. |
+| **Warna = 17 kunci tetap** di `COLORS` (`models/product.py`): kunci Inggris → (label Indonesia, hex bulatan). Label/hex di template lewat filter `color_label` / `color_hex` | Satu sumber untuk form, filter katalog, bulatan warna, dan CHECK. `order_items.color` (snapshot) tidak diberi CHECK supaya nota lama tetap utuh walau daftar warna berubah. |
+| **Warna produk di tabel `product_colors`** (#32), 1–3 per produk: minimal 1 & maksimal 3 dicek di **form**, UNIQUE (`product_id, color`) + CHECK whitelist di DB. Urutan = `id` (urutan disimpan) | Batas 3 adalah aturan tampilan, bukan integritas data, jadi tidak dipaksa trigger DB. Snapshot ke `order_items.color` berupa label gabungan (`Product.color_keys` → label). |
+| `products.sku` UNIQUE tapi boleh NULL; kosong disimpan NULL, huruf besar | Banyak produk lama belum punya SKU; `""` akan bentrok di UNIQUE. SKU dobel ditolak dengan pesan "SKU sudah dipakai produk lain." (cek awal + tangkap `IntegrityError`). |
+| `review_photos.filename` UNIQUE, file di luar web root; maks 3 foto per ulasan dicek di form | Aturan upload sama dengan bukti bayar (ekstensi + MIME + `secure_filename` + 2 MB, nama acak). |
+| `payments.proof_original_name` hanya untuk tampilan | Nama asli dari browser tidak dipercaya: disanitasi, tidak pernah dipakai sebagai path file. |
+| **Ukuran EU** bulat atau `.5`, 16–50 (#32; sebelumnya 30–50), disimpan sebagai teks (`"40.5"`); CHECK regex di PostgreSQL; diurutkan **sebagai angka** (`CAST(size AS NUMERIC)`) | `"40.5"` harus di antara `"40"` dan `"41"`; urutan string salah. |
 | Konversi EU → US/UK = **fungsi `convert_size`** dengan tabel di kode (perkiraan, pria/unisex, EU 35–50), **tanpa tabel DB** | Hanya acuan tampilan untuk tab EU/US/UK; tiap brand punya tabel sendiri sehingga tidak layak disimpan sebagai data pasti. |
 | `reviews`: satu user satu ulasan per produk (UNIQUE `user_id, product_id`), rating 1–5 (CHECK); `order_id` SET NULL | Ulasan bisa ditandai "pembeli terverifikasi" lewat pesanan asal. Hapus produk/user → ulasan ikut terhapus; hapus pesanan tidak menghapus ulasan. |
 | `wishlist_items`: UNIQUE (`user_id, product_id`), CASCADE ke user & produk | Klik ♡ dua kali tidak membuat baris ganda; produk yang dihapus hilang dari wishlist. |
@@ -233,13 +273,15 @@ erDiagram
 - `product_sizes(product_id, size)`
 - `cart_items(cart_id, product_size_id)` — produk + ukuran yang sama menambah quantity, bukan baris baru
 - `reviews(user_id, product_id)`, `wishlist_items(user_id, product_id)` — satu ulasan / satu ♡ per user per produk
+- `product_colors(product_id, color)`, `products(sku)` (NULL boleh banyak), `review_photos(filename)`
 
 **Check**
 - `product_sizes.stock >= 0`, `cart_items.quantity > 0`, `order_items.quantity > 0`
 - `products.price >= 0`, `orders.total_amount >= 0`
 - `orders.status IN (...)`, `payments.status IN (...)`, `users.role IN ('customer','admin')`
 - `users.email = lower(email)`, `order_items.subtotal >= 0`
-- `products.color IN (17 kunci COLORS)` (NULL boleh), `product_sizes.size ~ '^(3[0-9]|4[0-9])(\.5)?$|^50$'`
+- `product_colors.color IN (17 kunci COLORS)`, `product_sizes.size ~ '^(1[6-9]|[2-4][0-9])(\.5)?$|^50$'` (EU 16–50)
+- `payments.proof_size > 0` (NULL boleh)
 - `reviews.rating BETWEEN 1 AND 5`
 
 **Indeks**
@@ -251,6 +293,7 @@ erDiagram
 - `order_items(order_id)`
 - `audit_logs(event, created_at)` — filter log dan retensi 90 hari
 - `reviews(product_id)` — daftar ulasan di detail produk; `wishlist_items(product_id)` — CASCADE saat produk dihapus
+- `product_colors(product_id)`, `review_photos(review_id)` — muat warna/foto per produk/ulasan
 
 ---
 
@@ -271,3 +314,11 @@ erDiagram
 - Nama constraint mengikuti `naming_convention` di `extensions.py` (`pk_`, `fk_`, `uq_`, `ck_`, `ix_`).
 - **Autogenerate Alembic tidak mendeteksi CHECK baru pada tabel yang sudah ada.** Migrasi seperti itu ditulis manual (contoh: `145edb7f0c9a_warna_dan_ukuran_produk.py`), dan data lama diubah **sebelum** CHECK ditambahkan.
 - Migrasi #30 (berurutan): `145edb7f0c9a` warna & ukuran → `8e3ad3d08f2c` tabel `reviews` → `8b941dcf18fd` tabel `wishlist_items`.
+- Migrasi #32 (berurutan, semua diperiksa manual):
+  1. `bd25bcaae9cf` warna multi: buat `product_colors` → **salin** `products.color` yang tidak NULL → baru drop `products.color` + `ck_products_color`; `order_items.color` 30 → 60. Downgrade: `products.color` = warna pertama (warna ke-2/3 hilang), gagal jelas bila ada `order_items.color` > 30 karakter.
+  2. `e11f2068a0a1` spesifikasi: `material`, `fit`, `sku` + `uq_products_sku`, `is_limited` (server_default false).
+  3. `53dd3a62897c` ukuran 16–50: drop + create `ck_product_sizes_size`. Downgrade gagal jelas bila ada ukuran < 30.
+  4. `7d41337a36aa` ulasan: `reviews.size`, tabel `review_photos`.
+  5. `7937be7831c9` bukti bayar: `proof_original_name`, `proof_mime`, `proof_size` + `ck_payments_proof_size`.
+  6. `2223765f89a7` pembatalan: `orders.cancelled_at`, `cancel_reason`.
+  7. `dba83dd2874e` `users.last_login_at`.

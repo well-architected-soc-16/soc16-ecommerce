@@ -203,6 +203,7 @@ def catalog():
 def detail(slug):
     product = db.first_or_404(
         _with_card_data(db.select(Product).filter_by(slug=slug, is_active=True))
+        .options(selectinload(Product.colors))
     )
 
     # Varian warna lain dari model yang sama
@@ -210,12 +211,13 @@ def detail(slug):
     if product.group_id:
         variants = db.session.execute(
             db.select(Product)
+            .options(selectinload(Product.colors))
             .where(
                 Product.group_id == product.group_id,
                 Product.id != product.id,
                 Product.is_active.is_(True),
             )
-            .order_by(Product.color)
+            .order_by(Product.name, Product.id)
         ).scalars().all()
 
     return render_template("shop/detail.html", product=product, variants=variants)
