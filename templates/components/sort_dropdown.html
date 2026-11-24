@@ -1,0 +1,39 @@
+{# Dropdown urutan — docs/desain-komponen.md §15.
+   Pakai:  {% from "components/sort_dropdown.html" import sort_dropdown %}
+           {{ sort_dropdown("Urutkan ulasan", review_sorts, review_sort, "ulasan_urut", anchor="#ulasan", reset=["ulasan_hal"]) }}
+   options = {nilai: label} (whitelist yang sama dengan di route), current = nilai aktif, param = nama parameter query.
+   Isinya tautan biasa (jalan tanpa JS); buka/tutup, Esc, klik di luar, aria-expanded, dan panah atas/bawah
+   ditangani static/js/menu.js (details[data-dropdown]). reset = parameter yang dibuang saat urutan berganti (mis. halaman). #}
+{% macro sort_dropdown(label, options, current, param, anchor="", reset=[]) -%}
+{% set clear = {} %}
+{% for key in reset %}{% set _ = clear.update({key: none}) %}{% endfor %}
+<details class="group relative" data-dropdown>
+  <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none
+                  inline-flex items-center gap-2 rounded-full border border-ink bg-white px-4 py-1.5
+                  font-display font-bold text-sm uppercase tracking-[0.7px] text-ink hover:bg-neutral-100 active:bg-neutral-200
+                  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+           aria-label="{{ label }}: {{ options[current] }}" aria-haspopup="true">
+    <span>{{ options[current] }}</span>
+    <img src="{{ url_for('static', filename='icons/chevron.svg') }}" alt="" width="16" height="16" class="w-4 h-4 transition-transform group-open:rotate-180" aria-hidden="true">
+  </summary>
+
+  <div data-dropdown-panel class="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] p-1.5 rounded-2xl bg-white/70 backdrop-blur-[8px] border border-black/[0.06]
+              shadow-[0_4px_3px_rgba(0,0,0,0.08),0_10px_7.5px_rgba(0,0,0,0.12)] z-50">
+    <p class="px-3 pt-1.5 pb-2 mb-1 border-b border-black/10 font-display font-bold text-xs uppercase tracking-[0.6px] text-neutral-500">{{ label }}</p>
+    <ul>
+      {% for key, text in options.items() %}
+        {% set active = key == current %}
+        <li>
+          <a href="{{ url_with(**dict(clear, **{param: key})) }}{{ anchor }}" {{ 'aria-current="true"' | safe if active }}
+             class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-ink hover:bg-black/5 focus-visible:bg-black/5 outline-none {{ 'font-semibold' if active }}">
+            {{ text }}
+            {% if active %}
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4 shrink-0" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>
+            {% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</details>
+{%- endmacro %}

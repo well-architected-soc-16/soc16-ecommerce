@@ -1,4 +1,4 @@
-# ERD — E-Commerce Pururuna (PBL RKS-316) · v2.2
+# ERD — E-Commerce Pururuna (PBL RKS-316) · v3
 
 Dokumen desain basis data aplikasi e-commerce Flask, versi rombak (v2).
 DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
@@ -6,10 +6,9 @@ DBMS: PostgreSQL (dev: lokal WSL → produksi: srv-db 10.40.0.10, VLAN 40).
 **Aturan penamaan:** semua nama tabel, kolom, dan nilai status dalam bahasa Inggris (snake_case).
 Teks yang dilihat pengguna tetap bahasa Indonesia (diterjemahkan di template).
 
-![ERD v2.1](erd.png)
+![ERD v3](erd.png)
 
-> Gambar `erd.png` masih v2.1 (sebelum #32): belum memuat `product_colors`, `review_photos`, dan kolom baru #32.
-> Diagram mermaid di bawah adalah acuan terbaru.
+> Gambar `erd.png` = ERD v3 (15 tabel, termasuk perubahan #32; tabel/kolom berwarna biru = baru).
 
 ---
 

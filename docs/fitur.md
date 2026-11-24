@@ -42,7 +42,7 @@ Kolom **Kerjakan**: *sendiri* = ditulis manual (titik keamanan, harus bisa diper
 
 ## D. Tambahan (issue #30)
 
-Di luar 13 fitur utama. Skema (`reviews`, `review_photos`, `wishlist_items`) sudah dibuat di #30/#32; route & tampilan menyusul.
+Di luar 13 fitur utama. Skema (`reviews`, `review_photos`, `wishlist_items`) dibuat di #30/#32. #34: wishlist selesai; ulasan baru **tampil** di detail produk (ringkasan, filter, urutan), form tulis ulasan menyusul.
 
 | # | Fitur | Isi | Tabel | Layar | Kontrol keamanan | Kerjakan |
 |---|---|---|---|---|---|---|
