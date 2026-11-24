@@ -1,8 +1,10 @@
-// Detail produk: pilih ukuran -> tampilkan sisa stok dan batasi stepper jumlah.
+// Detail produk: pilih ukuran -> tampilkan sisa stok dan batasi stepper jumlah; kirim ke keranjang
+// tanpa ukuran -> pesan "Pilih ukuran dulu." (server tetap memeriksa ulang semuanya).
 // Tanpa JS ukuran tetap bisa dipilih (radio) dan jumlah tetap bisa diketik.
 (function () {
   const picker = document.querySelector("[data-size-picker]");
   const stepper = document.querySelector("[data-stepper]");
+  const form = document.querySelector("[data-add-to-cart]");
   if (!picker || !stepper) return;
 
   const info = picker.querySelector("[data-size-info]");
@@ -26,10 +28,13 @@
 
   picker.addEventListener("change", function (e) {
     const radio = e.target;
-    if (radio.name !== "size") return;
+    if (radio.name !== "product_size_id") return;
     const stock = parseInt(radio.dataset.stock, 10) || 0;
     input.max = Math.max(1, stock);
-    if (info) info.textContent = "Sisa " + stock + " pasang untuk EU " + radio.value + " · ukuran bergaris = stok habis";
+    if (info) {
+      info.textContent = "Sisa " + stock + " pasang untuk EU " + radio.dataset.size + " · ukuran bergaris = stok habis";
+      info.classList.remove("text-red-700");
+    }
     clamp();
   });
 
@@ -39,6 +44,20 @@
     input.value = (parseInt(input.value, 10) || 1) + parseInt(btn.dataset.step, 10);
     clamp();
   });
+
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      if (picker.querySelector('input[name="product_size_id"]:checked')) return;
+      e.preventDefault();
+      if (info) {
+        info.textContent = "Pilih ukuran dulu.";
+        info.classList.add("text-red-700");
+      }
+      const first = picker.querySelector('input[name="product_size_id"]:not(:disabled)');
+      if (first) first.focus();
+      picker.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
 
   input.addEventListener("change", clamp);
   if (info) info.textContent = defaultInfo;

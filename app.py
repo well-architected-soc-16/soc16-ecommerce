@@ -24,14 +24,18 @@ def create_app():
     from routes.admin import admin_bp
     from routes.shop import shop_bp
     from routes.wishlist import wishlist_bp, wishlist_ids
+    from routes.cart import cart_bp, cart_count
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(shop_bp)
     app.register_blueprint(wishlist_bp)
+    app.register_blueprint(cart_bp)
 
     # Global (bukan context processor) supaya terbaca juga di macro yang di-import, mis. product_card
     from utils import current_path, url_with
-    app.jinja_env.globals.update(wishlist_ids=wishlist_ids, current_path=current_path, url_with=url_with)
+    app.jinja_env.globals.update(
+        wishlist_ids=wishlist_ids, cart_count=cart_count, current_path=current_path, url_with=url_with,
+    )
 
     from commands import create_admin, seed, seed_reviews_command
     app.cli.add_command(create_admin)
