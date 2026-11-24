@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{# Wishlist saya — docs/desain-detail-wishlist.md 3.16 (berisi) & 3.17 (kosong) #}
+{% from "components/misc.html" import product_card %}
+{% from "components/buttons.html" import link_button %}
+{% from "components/sort_dropdown.html" import sort_dropdown %}
+{% block title %}Wishlist saya{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb" class="mb-6 text-sm text-neutral-500">
+  <ol class="flex flex-wrap items-center gap-1.5">
+    <li><a href="{{ url_for('shop.index') }}" class="hover:text-ink hover:underline">Beranda</a></li>
+    <li aria-hidden="true">/</li>
+    <li aria-current="page" class="text-ink">Wishlist saya</li>
+  </ol>
+</nav>
+
+<div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+  <div>
+    <h1 class="font-display font-extrabold text-4xl uppercase tracking-[0.75px] text-ink">Wishlist saya</h1>
+    {% if products %}<p class="mt-0.5 text-sm text-neutral-600">{{ products | length }} produk</p>{% endif %}
+  </div>
+  {% if products %}
+  {{ sort_dropdown("Urutkan", sorts, sort, "urut") }}
+  {% endif %}
+</div>
+
+{% if products %}
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
+    {% for p in products %}
+      {% call product_card(p) %}
+        <div class="mt-auto px-3 pt-1 pb-1">
+          {% if p.total_stock == 0 %}
+            <span class="flex w-full h-9 items-center justify-center rounded-full border border-neutral-200 bg-neutral-200 px-4 font-display font-bold text-sm uppercase tracking-[0.7px] text-neutral-500 cursor-not-allowed" aria-disabled="true">Stok habis</span>
+          {% else %}
+            {# Keranjang dibuat di #35; sementara menuju detail untuk pilih ukuran #}
+            {{ link_button("+ Keranjang", url_for('shop.detail', slug=p.slug), "pill_outline", extra="w-full h-9 !py-0") }}
+          {% endif %}
+        </div>
+      {% endcall %}
+    {% endfor %}
+  </div>
+
+  <p class="mt-10 rounded-xl bg-neutral-100 px-5 py-4 text-sm text-neutral-600">
+    Klik ♡ lagi untuk menghapus dari wishlist. Harga &amp; stok selalu mengikuti data terbaru; produk yang disembunyikan admin tidak ditampilkan.
+  </p>
+{% else %}
+  <div class="mx-auto max-w-2xl rounded-2xl bg-neutral-100 px-6 py-16 text-center flex flex-col items-center">
+    <img src="{{ url_for('static', filename='icons/heart.svg') }}" alt="" width="48" height="48" class="w-12 h-12" aria-hidden="true">
+    <h2 class="mt-4 font-display font-extrabold text-2xl uppercase tracking-[0.6px] text-ink">Belum ada produk disimpan</h2>
+    <p class="mt-2 text-neutral-600">Tekan ikon ♡ di produk yang kamu suka supaya gampang dicari lagi.</p>
+    <div class="mt-6">{{ link_button("Lihat katalog", url_for('shop.catalog'), "pill", arrow=true) }}</div>
+  </div>
+{% endif %}
+
+{% endblock %}

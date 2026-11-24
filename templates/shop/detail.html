@@ -1,65 +1,325 @@
 {% extends "base.html" %}
-{% from "components/misc.html" import brand_chip %}
+{# Detail produk — docs/desain-detail-wishlist.md §3.01 #}
+{% from "components/misc.html" import brand_chip, stars, wishlist_button %}
+{% from "components/sections.html" import section_heading, product_shelf %}
+{% from "components/buttons.html" import link_button %}
+{% from "components/sort_dropdown.html" import sort_dropdown %}
 {% block title %}{{ product.name }}{% endblock %}
 {% block content %}
-<a href="{{ url_for('shop.index') }}" class="text-sm hover:underline">&larr; Kembali ke beranda</a>
+{% set color_text = product.color_keys | map('color_label') | join(' / ') %}
+{% set brand_url = url_for('shop.catalog', brand=product.brand.slug) %}
+{% set h_display = "font-display font-extrabold text-3xl uppercase tracking-[0.75px] text-ink" %}
 
-<div class="grid md:grid-cols-2 gap-8 mt-4">
-  <div class="aspect-square rounded-lg border border-neutral-200 bg-neutral-100 flex items-center justify-center text-neutral-400">
+{# 2. Breadcrumb #}
+<nav aria-label="Breadcrumb" class="mb-6 text-sm text-neutral-500">
+  <ol class="flex flex-wrap items-center gap-1.5">
+    <li><a href="{{ url_for('shop.index') }}" class="hover:text-ink hover:underline">Beranda</a></li>
+    <li aria-hidden="true">/</li>
+    <li><a href="{{ brand_url }}" class="hover:text-ink hover:underline">{{ product.brand.name }}</a></li>
+    <li aria-hidden="true">/</li>
+    <li aria-current="page" class="text-ink truncate max-w-[60vw]">{{ product.name }}</li>
+  </ol>
+</nav>
+
+{# 3. Foto + info #}
+<div class="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
+  <div class="aspect-square rounded-2xl border border-neutral-200 bg-neutral-100 flex items-center justify-center text-neutral-400">
     Belum ada gambar
   </div>
 
-  <div class="flex flex-col gap-4">
-    <div class="self-start">{{ brand_chip(product.brand.name, url_for('shop.catalog', brand=product.brand.slug)) }}</div>
-    {% if product.is_limited %}<p class="self-start rounded-full border border-ink px-3 py-0.5 font-display font-bold text-xs uppercase tracking-[0.6px]">Edisi terbatas</p>{% endif %}
-    <h1 class="font-display font-extrabold uppercase text-3xl md:text-4xl leading-tight">{{ product.name }}</h1>
-    <p class="text-2xl font-bold">{{ product.price | rupiah }}</p>
-
-    {% set color_text = product.color_keys | map('color_label') | join(' / ') %}
-    {% if color_text or variants %}
-    <div>
-      <p class="text-sm font-semibold mb-2">Warna: {{ color_text or '-' }}</p>
-      {% if variants %}
-      <div class="flex flex-wrap gap-2">
-        <span class="rounded-full px-4 py-1.5 text-sm border border-ink bg-ink text-white">{{ color_text or product.name }}</span>
-        {% for v in variants %}
-          <a href="{{ url_for('shop.detail', slug=v.slug) }}"
-             class="rounded-full px-4 py-1.5 text-sm border border-neutral-300 hover:bg-neutral-100 active:bg-neutral-200">{{ v.color_keys | map('color_label') | join(' / ') or v.name }}</a>
-        {% endfor %}
-      </div>
+  <div class="flex flex-col gap-5">
+    <div class="flex flex-wrap items-center gap-2">
+      {{ brand_chip(product.brand.name, brand_url) }}
+      {% if product.is_limited %}
+        <span class="rounded-full border border-ink px-3 py-1 font-display font-bold text-xs uppercase tracking-[0.6px]">Edisi terbatas</span>
       {% endif %}
     </div>
-    {% endif %}
 
-    <div>
-      <p class="text-sm font-semibold mb-2">Ukuran (EU)</p>
-      <div class="flex flex-wrap gap-2">
-        {% for s in product.sizes %}
-          {% set alt = s.size | size_us_uk %}{# perkiraan US/UK pria/unisex #}
-          <span class="w-14 py-2 rounded-lg text-center text-sm border {{ 'border-neutral-200 text-neutral-300 line-through' if s.stock == 0 else 'border-ink' }}"
-                title="{{ 'Habis' if s.stock == 0 else 'Stok ' ~ s.stock }}{{ ' · ±US ' ~ alt.us ~ ' / UK ' ~ alt.uk if alt }}">{{ s.size }}</span>
-        {% endfor %}
-      </div>
-      <p class="mt-2 text-sm {{ 'text-red-700' if product.total_stock == 0 else 'text-neutral-600' }}">
-        {{ 'Stok habis' if product.total_stock == 0 else 'Total stok: ' ~ product.total_stock }}
+    <div class="flex flex-col gap-2">
+      <h1 class="font-display font-extrabold uppercase text-4xl md:text-5xl leading-[1.05] text-ink">{{ product.name }}</h1>
+      <p class="flex items-center gap-2 text-sm">
+        {% if summary.total %}
+          {{ stars(summary.average, "text-lg") }}
+          <span class="font-semibold">{{ summary.average | desimal }}</span>
+          <span class="sr-only">dari 5 bintang,</span>
+          <a href="#ulasan" class="text-neutral-600 underline underline-offset-2 hover:text-ink">{{ summary.total }} ulasan</a>
+        {% else %}
+          <span class="text-neutral-500">Belum ada ulasan</span>
+        {% endif %}
       </p>
     </div>
 
-    {% if product.material or product.fit or product.sku %}
-    <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1 text-sm border-t border-neutral-200 pt-4">
-      {% for label, value in [("Bahan", product.material), ("Fit", product.fit), ("Kode (SKU)", product.sku)] if value %}
-        <dt class="text-neutral-500">{{ label }}</dt><dd>{{ value }}</dd>
-      {% endfor %}
-    </dl>
-    {% endif %}
+    <div>
+      <p class="text-3xl font-bold text-ink">{{ product.price | rupiah }}</p>
+      {% if product.total_stock == 0 %}
+        <p class="mt-1 text-sm text-red-700">Stok habis</p>
+      {% else %}
+        <p class="mt-1 text-sm text-neutral-500">Stok total: {{ product.total_stock }} pasang</p>
+      {% endif %}
+    </div>
 
     {% if product.description %}
-      <div class="text-neutral-700 whitespace-pre-line border-t border-neutral-200 pt-4 leading-relaxed">{{ product.description }}</div>
+      <p class="text-neutral-700 leading-relaxed">{{ product.description | truncate(180, killwords=false, end='…') }}</p>
     {% endif %}
 
-    <button disabled class="mt-auto w-full h-[52px] rounded-full bg-neutral-200 text-neutral-500 font-display font-bold text-lg uppercase tracking-[0.9px] cursor-not-allowed">
-      Tambah ke keranjang (segera hadir)
-    </button>
+    {# Warna + thumbnail varian (grup model yang sama, termasuk produk ini) #}
+    <div>
+      <p class="text-sm font-semibold mb-2">Warna: <span class="font-normal">{{ color_text or '-' }}</span></p>
+      {% if variants | length > 1 %}
+      <ul class="flex flex-wrap gap-3" aria-label="Pilihan warna">
+        {% for v in variants %}
+          {% set active = v.id == product.id %}
+          {% set v_label = v.color_keys | map('color_label') | join(' / ') or v.name %}
+          <li class="w-16 flex flex-col items-center gap-1.5">
+            <a href="{{ url_for('shop.detail', slug=v.slug) }}" {{ 'aria-current="true"' | safe if active }}
+               aria-label="{{ v_label }}{{ ' (habis)' if v.total_stock == 0 }}" title="{{ v_label }}"
+               class="block w-16 h-16 rounded-lg overflow-hidden bg-neutral-100 {{ 'border-2 border-ink' if active else 'border border-neutral-200 hover:border-neutral-400' }}">
+              {# Foto varian belum ada: kotak berisi blok warna sebagai pengganti #}
+              <span class="flex h-full w-full p-2 gap-0.5" aria-hidden="true">
+                {% for c in v.colors %}<span class="flex-1 rounded-sm border border-black/10" style="background: {{ c.color | color_hex }}"></span>{% endfor %}
+              </span>
+            </a>
+            <span class="flex gap-1" aria-hidden="true">
+              {% for c in v.colors %}<span class="w-2.5 h-2.5 rounded-full border border-neutral-300" style="background: {{ c.color | color_hex }}"></span>{% endfor %}
+            </span>
+            {% if v.total_stock == 0 %}<span class="text-[11px] leading-none text-neutral-500">Habis</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+
+    {# Ukuran: radio + label (tanpa JS tetap bisa dipilih); static/js/detail.js mengisi sisa stok & batas jumlah #}
+    <fieldset data-size-picker>
+      <div class="flex items-baseline justify-between mb-2">
+        <legend class="text-sm font-semibold">Pilih ukuran (EU)</legend>
+        {# TODO: halaman panduan ukuran / kebijakan belum ada #}
+        <a href="#" class="text-sm text-neutral-600 underline underline-offset-2 hover:text-ink">Panduan ukuran</a>
+      </div>
+      <div class="grid grid-cols-5 sm:grid-cols-8 gap-2">
+        {% for s in product.sizes %}
+          {% set alt = s.size | size_us_uk %}{# perkiraan US/UK pria/unisex #}
+          <label title="{{ 'Habis' if s.stock == 0 else 'Stok ' ~ s.stock }}{{ ' · ±US ' ~ alt.us ~ ' / UK ' ~ alt.uk if alt }}">
+            <input type="radio" name="size" value="{{ s.size }}" data-stock="{{ s.stock }}" class="peer sr-only"
+                   {{ 'disabled' if s.stock == 0 }}>
+            <span class="flex h-11 items-center justify-center rounded-lg border text-sm select-none
+                         {{ 'border-neutral-200 text-neutral-300 line-through cursor-not-allowed' if s.stock == 0
+                            else 'border-neutral-300 cursor-pointer hover:border-ink peer-checked:bg-ink peer-checked:border-ink peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2' }}">
+              {{ s.size }}<span class="sr-only">{{ ' (habis)' if s.stock == 0 }}</span>
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="mt-2 text-xs text-neutral-500" data-size-info aria-live="polite">Ukuran bergaris = stok habis</p>
+    </fieldset>
+
+    {# Jumlah (stepper). Tombol – + butuh JS; tanpa JS isian angka tetap bisa diketik. #}
+    <div>
+      <label for="qty" class="block text-sm font-semibold mb-2">Jumlah</label>
+      <div class="inline-flex items-center rounded-full border border-neutral-300" data-stepper>
+        <button type="button" class="w-10 h-10 rounded-full text-xl leading-none hover:bg-neutral-100 active:bg-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+                data-step="-1" aria-label="Kurangi jumlah">&minus;</button>
+        <input id="qty" name="qty" type="number" inputmode="numeric" value="1" min="1"
+               max="{{ (product.sizes | map(attribute='stock') | list + [1]) | max }}"
+               class="w-12 text-center bg-transparent outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+               {{ 'disabled' if product.total_stock == 0 }}>
+        <button type="button" class="w-10 h-10 rounded-full text-xl leading-none hover:bg-neutral-100 active:bg-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+                data-step="1" aria-label="Tambah jumlah">+</button>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      {# Keranjang dibuat di #35 #}
+      <button disabled class="flex-1 h-[52px] rounded-full bg-neutral-200 text-neutral-500 font-display font-bold text-lg uppercase tracking-[0.9px] cursor-not-allowed">
+        Tambah ke keranjang (segera hadir)
+      </button>
+      {{ wishlist_button(product, "detail") }}
+    </div>
+    <p class="-mt-2 text-xs text-neutral-500">&check; Harga dihitung ulang saat checkout &middot; pembayaran diverifikasi admin</p>
+
+    {# Akordeon. TODO (CLAUDE.md): teks "tukar ukuran 3 hari" belum disepakati tim. #}
+    <div class="border-t border-neutral-200">
+      {% for title, body, open in [
+        ("Garansi tukar ukuran 3 hari", "Ukuran tidak pas? Tukar ukuran maksimal 3 hari setelah barang diterima, kondisi utuh dengan kotak & label.", true),
+        ("Pembayaran diverifikasi admin", "Admin mengecek setiap bukti bayar. Harga yang tampil adalah harga yang kamu bayar; pesanan diproses setelah bukti bayar diverifikasi.", false),
+        ("Pengiriman & ongkir", "Ongkos kirim ditampilkan saat checkout, sebelum kamu membayar.", false),
+      ] %}
+        <details class="group border-b border-neutral-200" {{ 'open' if open }}>
+          <summary class="list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-4 py-3.5 cursor-pointer font-display font-bold text-sm uppercase tracking-[0.7px] text-ink hover:text-neutral-600">
+            {{ title }}
+            <img src="{{ url_for('static', filename='icons/chevron.svg') }}" alt="" width="16" height="16" class="w-4 h-4 transition-transform group-open:rotate-180" aria-hidden="true">
+          </summary>
+          <p class="pb-4 text-sm leading-relaxed text-neutral-600">{{ body }}</p>
+        </details>
+      {% endfor %}
+    </div>
+
+    <p class="text-sm text-neutral-600">
+      Brand: <a href="{{ brand_url }}" class="text-ink underline underline-offset-2 hover:text-neutral-500">{{ product.brand.name }}</a>
+      &nbsp;&middot;&nbsp;
+      Koleksi:
+      {% if product.is_limited %}
+        <a href="{{ url_for('shop.catalog', stok='terbatas') }}" class="text-ink underline underline-offset-2 hover:text-neutral-500">Edisi terbatas</a>
+      {% else %}
+        <a href="{{ url_for('shop.catalog') }}" class="text-ink underline underline-offset-2 hover:text-neutral-500">Produk terbaru</a>
+      {% endif %}
+    </p>
   </div>
 </div>
+
+{# 4. Tentang produk ini #}
+<section class="mt-16 grid md:grid-cols-2 gap-8 lg:gap-12 items-start" aria-labelledby="tentang">
+  <div>
+    <h2 id="tentang" class="{{ h_display }} mb-4">Tentang produk ini</h2>
+    {% if product.description %}
+      <div class="text-neutral-700 whitespace-pre-line leading-relaxed">{{ product.description }}</div>
+    {% else %}
+      <p class="text-neutral-500">Belum ada deskripsi.</p>
+    {% endif %}
+  </div>
+  {% set size_range = ('EU ' ~ in_stock_sizes[0] ~ (' – ' ~ in_stock_sizes[-1] if in_stock_sizes | length > 1 else '')) if in_stock_sizes else '' %}
+  <dl class="rounded-xl border border-neutral-200 divide-y divide-neutral-200 text-sm">
+    {% for label, value in [
+      ("Brand", product.brand.name), ("Warna", color_text), ("Bahan", product.material),
+      ("Fit", product.fit), ("Ukuran tersedia", size_range), ("Kode", product.sku),
+    ] if value %}
+      <div class="grid grid-cols-[minmax(7rem,40%)_1fr] gap-4 px-5 py-3">
+        <dt class="text-neutral-500">{{ label }}</dt><dd class="text-ink">{{ value }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+</section>
+
+{# 5. Ulasan pembeli #}
+<section id="ulasan" class="mt-16 scroll-mt-24" aria-labelledby="judul-ulasan">
+  <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+    <h2 id="judul-ulasan" class="{{ h_display }}">Ulasan pembeli</h2>
+    {{ sort_dropdown("Urutkan ulasan", review_sorts, review_sort, "ulasan_urut", anchor="#ulasan", reset=["ulasan_hal"]) }}
+  </div>
+
+  <div class="grid lg:grid-cols-[340px_1fr] gap-8 items-start">
+    <div class="flex flex-col gap-4">
+      {# Ringkasan rating #}
+      <div class="rounded-xl border border-neutral-200 p-6">
+        {% if summary.total %}
+          <div class="flex items-end gap-3">
+            <p class="font-display font-extrabold text-6xl leading-none text-ink">{{ summary.average | desimal }}</p>
+            <div class="pb-1">
+              {{ stars(summary.average, "text-lg") }}
+              <p class="text-sm text-neutral-500">dari {{ summary.total }} ulasan</p>
+            </div>
+          </div>
+        {% else %}
+          <p class="font-display font-bold text-lg uppercase tracking-[0.6px] text-ink">Belum ada ulasan</p>
+        {% endif %}
+        <ul class="mt-5 space-y-1.5" aria-label="Sebaran rating">
+          {% for star, count in summary.dist.items() %}
+            <li class="grid grid-cols-[2rem_1fr_2rem] items-center gap-2 text-sm">
+              <span>{{ star }}★</span>
+              <span class="h-2 rounded-full bg-neutral-200 overflow-hidden" aria-hidden="true">
+                <span class="block h-full rounded-full bg-ink" style="width: {{ ((count / summary.total * 100) if summary.total else 0) | round(1) }}%"></span>
+              </span>
+              <span class="text-right text-neutral-600">{{ count }}<span class="sr-only"> ulasan bintang {{ star }}</span></span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      {# Tulis ulasan (form dibuat di issue berikutnya) #}
+      <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-6">
+        <h3 class="font-display font-bold text-lg uppercase tracking-[0.6px] text-ink">Tulis ulasan</h3>
+        <p class="mt-2 text-sm leading-relaxed text-neutral-600">
+          {% if review_status == 'guest' %}
+            <a href="{{ url_for('auth.login', next=current_path()) }}" class="font-semibold text-ink underline underline-offset-2">Masuk untuk menulis ulasan</a>
+          {% elif review_status == 'admin' %}
+            Ulasan hanya ditulis oleh pembeli.
+          {% elif review_status == 'reviewed' %}
+            Kamu sudah memberi ulasan untuk produk ini. 1 ulasan per produk.
+          {% elif review_status == 'eligible' %}
+            Kamu sudah membeli produk ini. Form ulasan segera hadir.
+          {% else %}
+            Hanya pembeli dengan pesanan berstatus Selesai yang bisa memberi ulasan. 1 ulasan per produk.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <nav aria-label="Filter ulasan" class="flex flex-wrap gap-2 mb-2">
+        {% for key, label in review_filters.items() %}
+          {{ brand_chip(label, url_for('shop.detail', slug=product.slug, ulasan=key, ulasan_urut=review_sort) ~ '#ulasan', active=(key == review_filter)) }}
+        {% endfor %}
+      </nav>
+
+      {% for r in reviews %}
+        {% set deleted = r.user.email.endswith('@deleted.invalid') %}
+        <article class="py-5 border-b border-neutral-200">
+          <div class="flex items-start gap-3">
+            <span class="w-10 h-10 shrink-0 rounded-full bg-neutral-200 flex items-center justify-center font-display font-bold text-sm text-ink" aria-hidden="true">{{ '?' if deleted else r.user.name | inisial }}</span>
+            <div class="min-w-0 flex-1">
+              <p class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-ink">{{ 'Akun dihapus' if deleted else r.user.name | nama_singkat }}</span>
+                {% if r.order_id %}
+                  <span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-px text-xs font-medium text-green-800">&check; Pembeli terverifikasi</span>
+                {% endif %}
+              </p>
+              <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-500">
+                {{ stars(r.rating, "text-sm") }}<span class="sr-only">{{ r.rating }} dari 5 bintang</span>
+                <span>{{ r.created_at | tanggal }}</span>
+                {% if r.size %}<span>&middot; Ukuran EU {{ r.size }}</span>{% endif %}
+              </p>
+              {% if r.comment %}
+                <p class="mt-2 text-neutral-700 whitespace-pre-line leading-relaxed">{{ r.comment }}</p>
+              {% endif %}
+              {% if r.photos %}
+                {# TODO: route penyaji foto ulasan (file di luar web root) dibuat bersama form ulasan #}
+                <ul class="mt-3 flex gap-2" aria-label="{{ r.photos | length }} foto ulasan">
+                  {% for photo in r.photos %}
+                    <li class="w-16 h-16 rounded-lg border border-neutral-200 bg-neutral-100 flex items-center justify-center text-[11px] text-neutral-400">Foto</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+      {% else %}
+        <p class="py-8 text-neutral-500">
+          {% if summary.total == 0 %}
+            Belum ada ulasan untuk produk ini. Ulasan dari pembeli akan tampil di sini.
+          {% else %}
+            Belum ada ulasan yang cocok dengan filter ini.
+          {% endif %}
+        </p>
+      {% endfor %}
+
+      {% if review_more > 0 %}
+        <div class="mt-6">
+          {{ link_button("Lihat " ~ review_more ~ " ulasan lainnya",
+                         url_for('shop.detail', slug=product.slug, ulasan=review_filter, ulasan_urut=review_sort, ulasan_hal=review_next_page) ~ '#ulasan',
+                         "pill_outline") }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# 6. Warna lain dari model ini #}
+{% if other_variants %}
+<section class="mt-16">
+  {{ section_heading("Warna lain dari model ini", product.group.name, "Lihat semua →",
+                     url_for('shop.catalog', brand=product.brand.slug, q=product.group.name)) }}
+  {{ product_shelf(other_variants, "Warna lain dari model ini") }}
+</section>
+{% endif %}
+
+{# 7. Produk terkait #}
+{% if related %}
+<section class="mt-16">
+  {{ section_heading("Produk terkait", link_label="Lihat semua →", link_href=brand_url) }}
+  {{ product_shelf(related, "Produk terkait") }}
+</section>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/rak.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/detail.js') }}" defer></script>
 {% endblock %}

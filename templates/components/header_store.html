@@ -1,5 +1,6 @@
 {# §1 Bar pengumuman + §2 Header toko (tamu / customer / admin).
-   Wishlist sengaja tidak ditampilkan (fitur ditunda). Keranjang tanpa badge jumlah. #}
+   Ikon ♡ wishlist: customer & tamu (tamu diarahkan ke Masuk); admin tidak punya wishlist.
+   Keranjang tanpa badge jumlah. #}
 <div class="bg-ink text-white min-h-9 flex items-center justify-center px-4 py-1.5 text-center font-display font-bold text-sm uppercase tracking-[0.7px] leading-tight">
   Belanja aman &middot; pembayaran diverifikasi admin &middot; Fast respon
 </div>
@@ -38,6 +39,12 @@
 
     {# Ikon & akun #}
     <div class="order-2 md:order-4 ml-auto md:ml-0 flex items-center gap-2 shrink-0">
+      {% if not (g.user and g.user.is_admin) %}
+        <a href="{{ url_for('wishlist.index') }}" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5"
+           aria-label="Wishlist saya" {{ 'aria-current="page"' | safe if request.endpoint == 'wishlist.index' }}>
+          <img src="{{ url_for('static', filename='icons/heart.svg') }}" alt="" width="24" height="24" class="w-6 h-6" aria-hidden="true">
+        </a>
+      {% endif %}
       {% if g.user %}
         {# Halaman keranjang belum ada (fitur 4) #}
         <span class="w-9 h-9 flex items-center justify-center rounded-full opacity-60 cursor-not-allowed" title="Keranjang (segera hadir)" aria-label="Keranjang (segera hadir)" role="img">

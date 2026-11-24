@@ -1,6 +1,6 @@
 {# §3 Menu akun (dropdown). Butuh g.user.
    Variabel opsional: trigger = "store" (ikon user + nama) | "admin" (avatar + nama ▾, di header admin).
-   Item "Wishlist saya" sengaja tidak ditampilkan (fitur ditunda). #}
+   Customer: Profil saya · Pesanan saya · Wishlist saya. Admin: Profil saya · Dashboard admin. #}
 {% set trigger = trigger | default("store") %}
 <details class="relative" data-dropdown>
   <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-2 p-1 rounded-full hover:bg-black/5"
@@ -32,6 +32,7 @@
     {% else %}
       {# Rute pesanan belum ada (fitur 7) #}
       <span class="block px-3 py-2 rounded-lg text-sm text-neutral-400 cursor-not-allowed" aria-disabled="true">Pesanan saya <span class="text-xs">(segera hadir)</span></span>
+      <a href="{{ url_for('wishlist.index') }}" class="{{ item }}">Wishlist saya</a>
     {% endif %}
 
     <form method="post" action="{{ url_for('auth.logout') }}" class="border-t border-black/10 mt-1 pt-1">

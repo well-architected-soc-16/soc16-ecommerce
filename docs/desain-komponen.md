@@ -56,6 +56,10 @@ Tailwind config: `colors: { ink: { DEFAULT: '#1D2128', muda: '#353B46' } }`.
 - Gambar: rasio 1:1, latar `#f5f5f5`, border `#e5e5e5`, `rounded-[8px]`; teks "Belum ada gambar" Barlow 14px `#a3a3a3` bila kosong.
 - Tombol wishlist (opsional): lingkaran 36px putih, border `#e5e5e5`, kanan 9px / atas 9px, ikon hati 18px (garis; penuh bila sudah disukai). *(lihat Catatan A)*
 - Info (padding 8px, gap 2px): harga Barlow Bold 16px hitam; nama Barlow 16px hitam; brand Barlow 14px `#737373`; "Stok habis" Barlow 14px `#b91c1c` bila `total_stock == 0`.
+- **Rata antar kartu satu baris** (macro `product_card`): kartu `flex flex-col h-full`, tautan `flex-1` (item grid/rak meregang
+  setinggi baris); nama `line-clamp-2` dengan tinggi tetap 2 baris (`h-12`, nama lengkap di `title`), sehingga harga, nama,
+  dan brand sejajar. Isi tambahan lewat `{% call product_card(p) %}` dibungkus `mt-auto` supaya menempel di bawah kartu
+  (mis. tombol "+ KERANJANG" / "STOK HABIS" di Wishlist saya, keduanya tinggi 36px). Teks "Stok habis" tidak menggeser kartu lain.
 
 ## 6. Tombol
 | Komponen | Spesifikasi |
@@ -114,6 +118,24 @@ Buat sebagai macro Jinja `status_badge(value)` dengan peta nilai → teks & kela
 - Lingkaran 56px, latar `#16a34a`, ikon WA putih 28px, bayangan `0 10px 7.5px rgba(0,0,0,.15)`, `fixed` kanan 20px bawah 20px.
 - **Hanya di beranda.** Tampil hanya bila `config.WA_TOKO` diisi.
 
+## 15. Dropdown urutan — `components/sort_dropdown.html`
+Pengganti `<select>` bawaan browser untuk urutan daftar. Dipakai di Wishlist saya (`?urut=`: Terakhir disimpan / Harga
+termurah / Harga termahal) dan bagian Ulasan detail produk (`?ulasan_urut=`: Terbaru / Rating tertinggi / Rating terendah).
+- **Pakai:** `{{ sort_dropdown(label, options, current, param, anchor="", reset=[]) }}` — `options` = `{nilai: label}` dari
+  whitelist route, `current` = nilai aktif, `param` = nama parameter query, `anchor` mis. `"#ulasan"`, `reset` = parameter
+  yang dibuang saat urutan berganti (mis. `["ulasan_hal"]`). Parameter lain tetap dibawa (`url_with()` di `utils.py`).
+- **Tombol:** pil garis (putih, border `ink`, padding 6px 16px, Barlow Condensed Bold 14px UPPERCASE tracking 0.7px) berisi
+  label pilihan aktif + chevron 16px (berputar saat terbuka). `aria-label` = "<label>: <pilihan aktif>".
+- **Panel:** lebar 224px, rata kanan tombol, jarak 8px, padding 6px, `rounded-[16px]`, latar `rgba(255,255,255,0.7)` +
+  `backdrop-blur-[8px]`, border `rgba(0,0,0,0.06)`, bayangan sama dengan Menu Brand (§4). Judul kecil = `label`
+  (Barlow Condensed Bold 12px, `#737373`). Item = **tautan biasa** (padding 8px 12px, `rounded-[8px]`, Barlow 14px, hover
+  `black/5`); pilihan aktif tebal + ikon centang + `aria-current="true"`. Jika panel keluar layar (mis. tombol di kiri pada
+  HP), `menu.js` memindahkannya rata kiri.
+- **Perilaku:** `details[data-dropdown]` + `static/js/menu.js` (sama dengan Menu Brand & Menu Akun): klik di luar / Esc
+  menutup (fokus kembali ke tombol), `aria-expanded` di tombol, panah atas/bawah berpindah antar pilihan.
+  Tanpa JS tetap jalan (`<details>` bawaan + tautan).
+- Nilai tetap divalidasi whitelist di server; nilai tak dikenal kembali ke default.
+
 ## 14. Lainnya (untuk fitur berikutnya, belum dipakai)
 `Jumlah (stepper)` 10:1079 · `Kotak Unggah` 10:1088 · `Foto (kosong)` 10:1055 · `Stat Card` 3:3 · `Menu Card` 3:12 — dikerjakan bersama fiturnya.
 
@@ -122,6 +144,6 @@ Ambil SVG dari Figma (URL sementara, berlaku 7 hari) dan simpan di `static/icons
 search, wishlist (hati garis & penuh), keranjang (tas), user, email, gembok, mata, error (lingkaran !), chevron bawah, panah kanan 32×12, whatsapp, pin peta.
 
 ## Catatan
-- **A. Wishlist** ada di desain (ikon header, tombol di kartu, "Wishlist saya") tetapi **belum ada di `fitur.md` maupun ERD**. Keputusan: lihat issue.
+- **A. Wishlist** (ikon header, tombol di kartu, "Wishlist saya"): dibuat di #34, lihat `desain-detail-wishlist.md`.
 - Keranjang: badge jumlah baru berfungsi setelah fitur keranjang; untuk sekarang ikon tampil tanpa badge.
 - Teks UI bahasa Indonesia; aksi pengubah data tetap POST + CSRF.

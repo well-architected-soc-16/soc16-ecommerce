@@ -21,18 +21,19 @@ Dev: WSL Ubuntu, database `ecommerce`, user `ecom` (bukan superuser).
 ## Struktur
 
 ```
-app.py            create_app(), filter template (rupiah, wib, color_label, color_hex, size_us_uk)
+app.py            create_app(), filter template (rupiah, wib, tanggal, desimal, nama_singkat, inisial, color_label,
+                  color_hex, size_us_uk), global template wishlist_ids(), current_path(), url_with()
 config.py         Config dari .env (SECRET_KEY & DATABASE_URL wajib)
 extensions.py     db (dengan naming_convention), migrate, csrf
 audit.py          catat(event, user=None, email=None, **detail) → DB + file JSON (dibaca Wazuh)
-utils.py          buat_slug, slug_unik
-commands.py       flask buat-admin, flask seed
+utils.py          buat_slug, slug_unik, safe_next (cegah open redirect), current_path, url_with
+commands.py       flask buat-admin, flask seed, flask seed-ulasan
 models/           user, product (Brand, ProductGroup, Product, ProductColor, ProductSize, COLORS, convert_size), cart,
                   order (Order, OrderItem, Payment), review (Review, ReviewPhoto), wishlist (WishlistItem), audit_log
-routes/           auth (tanpa prefix), admin (/admin), shop (tanpa prefix, termasuk "/")
+routes/           auth (tanpa prefix), admin (/admin), shop (tanpa prefix, termasuk "/"), wishlist (/wishlist)
 forms/            auth, admin
-templates/        Jinja2
-docs/             erd.md (skema v2.2) + erd.png (v2.1, belum #32), fitur.md (13 fitur + tambahan + layar Figma), desain-*.md (spesifikasi Figma)
+templates/        Jinja2; komponen di templates/components/ (urutan daftar: sort_dropdown, bukan <select>)
+docs/             erd.md + erd.png (skema v3), fitur.md (13 fitur + tambahan + layar Figma), desain-*.md (spesifikasi Figma)
 ```
 
 ## Acuan wajib
@@ -73,7 +74,7 @@ docs/             erd.md (skema v2.2) + erd.png (v2.1, belum #32), fitur.md (13 
 - **`reviews`**: satu ulasan per user per produk (UNIQUE), `rating` CHECK 1–5, `comment` maks 1000 (validasi form),
   `order_id` SET NULL, `size` snapshot. Hanya pembeli dengan pesanan `completed` (Figma 3.01).
   **`review_photos`**: maks 3 per ulasan (form), `filename` UNIQUE, aturan upload sama dengan bukti bayar. **`wishlist_items`**: UNIQUE (user, produk). Keduanya CASCADE ke user & produk; relasi ORM
-  hanya dari sisi anak. Route & template belum dibuat.
+  hanya dari sisi anak. Wishlist sudah jalan (#34); form tulis ulasan belum (detail baru menampilkan ulasan).
 - **Migrasi yang menambah CHECK ke tabel lama ditulis manual** (autogenerate tidak mendeteksinya); ubah data lama
   **sebelum** CHECK dibuat.
 
@@ -91,6 +92,9 @@ docs/             erd.md (skema v2.2) + erd.png (v2.1, belum #32), fitur.md (13 
 - **Info bukti bayar**: `payments.proof_original_name` (disanitasi, hanya tampilan, jangan dipakai sebagai path),
   `proof_mime` hasil deteksi `puremagic`, `proof_size` byte (CHECK > 0).
 - **Upload ulang bukti bayar** setelah ditolak: **update baris `payments` yang sama** (`order_id` UNIQUE), jangan buat baris baru.
+- **Redirect `next`** (login, toggle wishlist) hanya lewat `safe_next()`: path lokal saja, URL absolut / `//` / `\` ditolak.
+- **Wishlist**: hanya role customer (admin → 403 + `access_denied`, tombol ♡ disembunyikan); tamu → Masuk dengan `next`;
+  form kirim `aksi=simpan|hapus` eksplisit (klik ganda tidak membatalkan); produk tersembunyi → 404 & tidak ditampilkan.
 - **Input query** (filter, urutan, pencarian) divalidasi dengan whitelist; pencarian pakai `icontains(..., autoescape=True)`.
 - **Output** selalu lewat template Jinja (autoescape). Jangan return f-string berisi data user. Jangan pakai `|safe` untuk data user.
 - **Semua form pakai CSRF** (Flask-WTF). Aksi yang mengubah data wajib POST.
@@ -120,6 +124,15 @@ docs/             erd.md (skema v2.2) + erd.png (v2.1, belum #32), fitur.md (13 
   login berhasil mengisi `users.last_login_at`.
 - Retensi audit log 90 hari (perintah `flask hapus-log-lama`) **belum dibuat**.
 - Lupa password customer butuh SMTP → **belum dibuat**.
+- Nama penulis ulasan tampil "Nama depan + inisial belakang" (`|nama_singkat`), akun terhapus → "Akun dihapus".
+
+## TODO (belum disepakati / belum dibuat)
+
+- **Teks "Garansi tukar ukuran 3 hari"** (akordeon detail produk, kotak "Belanja aman" beranda) **belum disepakati tim**.
+  Tampil sesuai Figma; ubah/hapus kalau kebijakan berbeda.
+- Teks akordeon "Pengiriman & ongkir" ("ongkos kirim ditampilkan saat checkout") baru benar setelah checkout (#35+).
+- Tautan "Panduan ukuran" dan halaman kebijakan masih `#`.
+- Foto produk & foto ulasan belum disajikan (butuh route penyaji file di luar web root); sementara kotak abu.
 
 ## Perintah
 
@@ -127,7 +140,8 @@ docs/             erd.md (skema v2.2) + erd.png (v2.1, belum #32), fitur.md (13 
 flask --app app run --debug           # dev saja, JANGAN --debug di server
 flask --app app db migrate -m "..."   # setelah ubah model
 flask --app app db upgrade
-flask --app app seed                  # data contoh (hanya jika tabel produk kosong)
+flask --app app seed                  # data contoh + ulasan (hanya jika tabel produk kosong)
+flask --app app seed-ulasan           # ulasan contoh untuk DB dev yang sudah berisi (sekali saja)
 flask --app app buat-admin
 ```
 

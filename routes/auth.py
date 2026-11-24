@@ -1,7 +1,7 @@
 from datetime import timedelta
 from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, flash, session, g
+from flask import Blueprint, render_template, redirect, url_for, flash, session, g, request
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -9,6 +9,7 @@ from audit import catat
 from extensions import db
 from forms.auth import RegisterForm, LoginForm
 from models import User, now_utc
+from utils import safe_next, current_path
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -31,7 +32,7 @@ def login_required(view):
     def wrapper(*args, **kwargs):
         if g.user is None:
             flash("Silakan login terlebih dahulu.", "error")
-            return redirect(url_for("auth.login"))
+            return redirect(url_for("auth.login", next=current_path()))
         return view(*args, **kwargs)
     return wrapper
 
@@ -76,8 +77,10 @@ def register():
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
+    # next hanya path lokal (cegah open redirect); form tanpa action ikut mengirim query ini saat POST
+    next_url = safe_next(request.args.get("next"))
     if g.user is not None:
-        return redirect(_home_for(g.user))
+        return redirect(next_url or _home_for(g.user))
 
     form = LoginForm()
 
@@ -127,7 +130,7 @@ def login():
         session["user_id"] = user.id
         catat("login_success", user=user)
         flash(f"Selamat datang, {user.name}.", "success")
-        return redirect(_home_for(user))
+        return redirect(next_url or _home_for(user))
 
     return render_template("auth/login.html", form=form)
 

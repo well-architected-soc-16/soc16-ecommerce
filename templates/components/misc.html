@@ -1,21 +1,61 @@
 {# Komponen kecil — docs/desain-komponen.md §5, §7, §10.
-   Pakai:  {% from "components/misc.html" import product_card, brand_chip, status_badge %} #}
+   Pakai:  {% from "components/misc.html" import product_card, wishlist_button, stars, brand_chip, status_badge %} #}
 
-{# §5 Kartu produk. Tombol wishlist sengaja tidak ditampilkan (fitur ditunda). #}
+{# Tombol ♡ wishlist (POST + CSRF, aksi eksplisit simpan/hapus, kembali ke halaman ini lewat next).
+   kind: "card" (lingkaran 36px di pojok foto, §5) · "detail" (lingkaran 52px di samping tombol keranjang).
+   Admin tidak punya wishlist: tombol tidak ditampilkan. Tamu: tetap tampil, route mengarahkan ke Masuk. #}
+{% macro wishlist_button(p, kind="card") -%}
+{% if not (g.user and g.user.is_admin) %}
+  {% set saved = p.id in wishlist_ids() %}
+  <form method="post" action="{{ url_for('wishlist.toggle', product_id=p.id) }}"
+        class="{{ 'absolute top-[13px] right-[13px] z-10' if kind == 'card' else 'shrink-0' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ current_path() }}">
+    <input type="hidden" name="aksi" value="{{ 'hapus' if saved else 'simpan' }}">
+    <button class="flex items-center justify-center rounded-full bg-white border border-neutral-200 hover:bg-neutral-100 active:bg-neutral-200 cursor-pointer
+                   {{ 'w-9 h-9' if kind == 'card' else 'w-[52px] h-[52px] border-ink' }}"
+            aria-pressed="{{ 'true' if saved else 'false' }}"
+            aria-label="{{ ('Hapus ' if saved else 'Simpan ') ~ p.name ~ (' dari wishlist' if saved else ' ke wishlist') }}"
+            title="{{ 'Hapus dari wishlist' if saved else 'Simpan ke wishlist' }}">
+      {% set px = 18 if kind == 'card' else 24 %}
+      <img src="{{ url_for('static', filename='icons/heart-filled.svg' if saved else 'icons/heart.svg') }}"
+           alt="" width="{{ px }}" height="{{ px }}" style="width: {{ px }}px; height: {{ px }}px" aria-hidden="true">
+    </button>
+  </form>
+{% endif %}
+{%- endmacro %}
+
+{# §5 Kartu produk + tombol ♡. Isi tambahan di bawah kartu (mis. tombol di Wishlist saya) lewat
+   {% call product_card(p) %}...{% endcall %}; bungkus isinya dengan mt-auto. Tombol ♡ di luar <a>
+   (form tidak boleh di dalam link).
+   Rata antar kartu satu baris: kartu h-full + <a> flex-1 (item grid/rak meregang setinggi baris), nama
+   line-clamp-2 dengan tinggi tetap 2 baris, sehingga harga/nama/brand sejajar dan isi caller menempel di bawah. #}
 {% macro product_card(p) -%}
-<a href="{{ url_for('shop.detail', slug=p.slug) }}" class="group flex flex-col p-1 rounded-xl hover:bg-neutral-100 transition-colors">
-  <div class="aspect-square rounded-lg border border-neutral-200 bg-neutral-100 flex items-center justify-center text-sm text-neutral-400">
-    Belum ada gambar
-  </div>
-  <div class="p-2 flex flex-col gap-0.5">
-    <p class="text-base font-bold text-black">{{ p.price | rupiah }}</p>
-    <h3 class="text-base text-black group-hover:text-neutral-500 transition-colors">{{ p.name }}</h3>
-    <p class="text-sm text-neutral-500">{{ p.brand.name }}</p>
-    {% if p.total_stock == 0 %}
-      <p class="text-sm text-red-700">Stok habis</p>
-    {% endif %}
-  </div>
-</a>
+<div class="relative flex flex-col h-full">
+  <a href="{{ url_for('shop.detail', slug=p.slug) }}" class="group flex-1 flex flex-col p-1 rounded-xl hover:bg-neutral-100 transition-colors">
+    <div class="aspect-square rounded-lg border border-neutral-200 bg-neutral-100 flex items-center justify-center text-sm text-neutral-400">
+      Belum ada gambar
+    </div>
+    <div class="p-2 flex flex-col gap-0.5">
+      <p class="text-base font-bold text-black">{{ p.price | rupiah }}</p>
+      <h3 class="text-base leading-6 h-12 line-clamp-2 break-words text-black group-hover:text-neutral-500 transition-colors" title="{{ p.name }}">{{ p.name }}</h3>
+      <p class="text-sm text-neutral-500">{{ p.brand.name }}</p>
+      {% if p.total_stock == 0 %}
+        <p class="text-sm text-red-700">Stok habis</p>
+      {% endif %}
+    </div>
+  </a>
+  {{ wishlist_button(p) }}
+  {% if caller is defined %}{{ caller() }}{% endif %}
+</div>
+{%- endmacro %}
+
+{# Bintang rating: 5 bintang abu + lapisan kuning selebar nilai (mis. 4,6 -> 92%). #}
+{% macro stars(value, cls="text-base") -%}
+<span class="relative inline-block leading-none tracking-[1px] {{ cls }}" aria-hidden="true">
+  <span class="text-neutral-300">★★★★★</span>
+  <span class="absolute inset-0 overflow-hidden whitespace-nowrap text-yellow-400" style="width: {{ ((value or 0) / 5 * 100) | round(1) }}%">★★★★★</span>
+</span>
 {%- endmacro %}
 
 {# §7 Chip brand #}

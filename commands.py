@@ -1,8 +1,14 @@
+import secrets
+from datetime import timedelta
+
 import click
 from flask.cli import with_appcontext
 
 from extensions import db
-from models import User, Brand, ProductGroup, Product, ProductColor, ProductSize
+from models import (
+    User, Brand, ProductGroup, Product, ProductColor, ProductSize,
+    Order, OrderItem, Review, color_label, now_utc,
+)
 from utils import buat_slug
 
 
@@ -97,3 +103,125 @@ def seed():
 
     db.session.commit()
     click.echo(f"Seed selesai: {len(brands)} brand, {len(SEED_PRODUCTS)} produk.")
+
+    by_sku = {p.sku: p for p in db.session.execute(db.select(Product)).scalars()}
+    targets = [by_sku[sku] for sku in SEED_REVIEW_SKUS]
+    click.echo(seed_reviews(targets))
+
+
+# ---------- Ulasan contoh (#34) ----------
+
+# Pembeli contoh: password acak (tidak bisa dipakai login), email domain .test
+SEED_CUSTOMERS = ["Rina Putri", "Budi Santoso", "Sari Dewi Lestari", "Andi Wijaya", "Maya", "Dimas Pratama"]
+SEED_EMAIL = "seed-{}@contoh.test"
+
+# Per produk target: (indeks pembeli, rating, komentar, simpan ukuran?, berapa hari lalu)
+SEED_REVIEWS = [
+    [
+        (0, 5, "Nyaman dipakai seharian, ukurannya pas. Pengiriman cepat.", True, 2),
+        (1, 4, "Bagus, tapi solnya agak keras di minggu pertama.", True, 5),
+        (2, 5, "Warnanya sama persis dengan foto. Suka!", True, 9),
+        (3, 3, "Kualitas oke, tapi ukurannya sedikit kecil. Saran naik setengah ukuran.", True, 14),
+        (4, 5, "Sudah kedua kalinya beli di sini, aman.", False, 20),
+        (5, 2, None, False, 26),
+    ],
+    [
+        (0, 4, "Ringan untuk lari pagi, bantalannya empuk.", True, 3),
+        (2, 5, "Mantap untuk latihan 10K.", True, 11),
+        (3, 4, "Sesuai harga. Jahitan rapi.", False, 18),
+    ],
+    [
+        (1, 5, "Desainnya klasik, gampang dipadukan.", True, 7),
+    ],
+]
+SEED_REVIEW_SKUS = ["ADS-SAMBA-WHT", "NKE-PEG41-BLU", "NB-530-SLV"]  # dipakai `flask seed`
+
+
+def _order_number():
+    while True:
+        number = "PRN-" + secrets.token_hex(3).upper()
+        if not db.session.execute(db.select(Order.id).filter_by(order_number=number)).first():
+            return number
+
+
+def seed_reviews(products):
+    """Buat pembeli contoh + pesanan completed + ulasan untuk produk target (urut = SEED_REVIEWS).
+
+    Stok tidak dikurangi (hanya riwayat contoh). Mengembalikan teks ringkasan.
+    """
+    customers = []
+    for name in SEED_CUSTOMERS:
+        user = User(email=SEED_EMAIL.format(buat_slug(name)), name=name, role="customer")
+        user.set_password(secrets.token_urlsafe(32))
+        db.session.add(user)
+        customers.append(user)
+
+    now = now_utc()
+    count = 0
+    for product, entries in zip(products, SEED_REVIEWS):
+        sizes = list(product.sizes)
+        if not sizes:
+            continue
+        for i, (who, rating, comment, keep_size, days) in enumerate(entries):
+            size = sizes[i % len(sizes)]
+            created = now - timedelta(days=days)
+            ordered = created - timedelta(days=5)
+            price = product.price
+            order = Order(
+                user=customers[who], order_number=_order_number(), status="completed",
+                subtotal=price, shipping_cost=0, total_amount=price,
+                recipient_name=customers[who].name, recipient_phone="080000000000",
+                shipping_address="Alamat contoh (data seed)",
+                created_at=ordered, paid_at=ordered + timedelta(hours=2),
+                shipped_at=ordered + timedelta(days=1), completed_at=ordered + timedelta(days=3),
+                items=[OrderItem(
+                    product_size=size, product_name=product.name, size=size.size,
+                    color=" / ".join(color_label(k) for k in product.color_keys) or None,
+                    unit_price=price, quantity=1, subtotal=price,
+                )],
+            )
+            db.session.add(order)
+            db.session.add(Review(
+                product=product, user=customers[who], order=order,
+                size=size.size if keep_size else None,
+                rating=rating, comment=comment, created_at=created, updated_at=created,
+            ))
+            count += 1
+
+    db.session.commit()
+    names = ", ".join(p.name for p in products[: len(SEED_REVIEWS)])
+    return f"Ulasan contoh: {count} ulasan dari {len(customers)} pembeli untuk: {names}."
+
+
+@click.command("seed-ulasan")
+@with_appcontext
+def seed_reviews_command():
+    """Tambah ulasan contoh ke database dev yang sudah berisi produk. Hanya sekali."""
+    if db.session.execute(
+        db.select(User.id).where(User.email.like(SEED_EMAIL.format("%")))
+    ).first():
+        raise click.ClickException("Ulasan contoh sudah pernah dibuat (pembeli seed-*@contoh.test ada). Dibatalkan.")
+
+    # Pakai SKU seed kalau ada; kalau tidak (data dev lama), ambil produk aktif pertama yang punya ukuran,
+    # utamakan yang punya varian warna supaya bagian varian ikut teruji.
+    by_sku = {
+        p.sku: p for p in db.session.execute(
+            db.select(Product).where(Product.sku.in_(SEED_REVIEW_SKUS), Product.is_active.is_(True))
+        ).scalars()
+    }
+    targets = [by_sku[sku] for sku in SEED_REVIEW_SKUS if sku in by_sku]
+    if len(targets) < len(SEED_REVIEWS):
+        candidates = db.session.execute(
+            db.select(Product)
+            .where(Product.is_active.is_(True), Product.sizes.any())
+            .order_by(Product.group_id.is_(None), Product.id)
+        ).scalars().all()
+        for p in candidates:
+            if len(targets) >= len(SEED_REVIEWS):
+                break
+            if p not in targets:
+                targets.append(p)
+    if not targets:
+        raise click.ClickException("Belum ada produk aktif dengan ukuran. Jalankan `flask seed` atau tambah produk dulu.")
+
+    click.echo(seed_reviews(targets))
