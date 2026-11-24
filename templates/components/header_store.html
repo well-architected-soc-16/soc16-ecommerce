@@ -1,6 +1,6 @@
 {# §1 Bar pengumuman + §2 Header toko (tamu / customer / admin).
-   Ikon ♡ wishlist: customer & tamu (tamu diarahkan ke Masuk); admin tidak punya wishlist.
-   Keranjang tanpa badge jumlah. #}
+   Ikon ♡ wishlist & keranjang: customer & tamu (tamu diarahkan ke Masuk); admin tidak punya keduanya.
+   Badge keranjang = jumlah baris produk (cart_count(), satu query per request), tidak tampil bila 0. #}
 <div class="bg-ink text-white min-h-9 flex items-center justify-center px-4 py-1.5 text-center font-display font-bold text-sm uppercase tracking-[0.7px] leading-tight">
   Belanja aman &middot; pembayaran diverifikasi admin &middot; Fast respon
 </div>
@@ -46,13 +46,19 @@
         </a>
       {% endif %}
       {% if g.user %}
-        {# Halaman keranjang belum ada (fitur 4) #}
-        <span class="w-9 h-9 flex items-center justify-center rounded-full opacity-60 cursor-not-allowed" title="Keranjang (segera hadir)" aria-label="Keranjang (segera hadir)" role="img">
-          <img src="{{ url_for('static', filename='icons/cart.svg') }}" alt="" width="26" height="26" class="w-[26px] h-[26px]">
-        </span>
+        {% if not g.user.is_admin %}
+          {% set n_cart = cart_count() %}
+          <a href="{{ url_for('cart.index') }}" class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5"
+             aria-label="Keranjang{{ ', ' ~ n_cart ~ ' produk' if n_cart }}" {{ 'aria-current="page"' | safe if request.endpoint == 'cart.index' }}>
+            <img src="{{ url_for('static', filename='icons/cart.svg') }}" alt="" width="26" height="26" class="w-[26px] h-[26px]" aria-hidden="true">
+            {% if n_cart %}
+              <span class="absolute left-5 -top-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-ink border-[1.5px] border-white flex items-center justify-center font-sans font-bold text-[10px] leading-none text-white" aria-hidden="true">{{ n_cart if n_cart < 100 else '99+' }}</span>
+            {% endif %}
+          </a>
+        {% endif %}
         {% include "components/account_menu.html" %}
       {% else %}
-        <a href="{{ url_for('auth.login') }}" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5" aria-label="Keranjang (masuk dulu)">
+        <a href="{{ url_for('auth.login', next=url_for('cart.index')) }}" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5" aria-label="Keranjang (masuk dulu)">
           <img src="{{ url_for('static', filename='icons/cart.svg') }}" alt="" width="26" height="26" class="w-[26px] h-[26px]" aria-hidden="true">
         </a>
         <a href="{{ url_for('auth.login') }}" class="px-2 text-sm font-medium text-ink hover:underline">Masuk</a>

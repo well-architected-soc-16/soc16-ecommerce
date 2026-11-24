@@ -4,6 +4,7 @@
 {% from "components/sections.html" import section_heading, product_shelf %}
 {% from "components/buttons.html" import link_button %}
 {% from "components/sort_dropdown.html" import sort_dropdown %}
+{% from "components/stepper.html" import stepper %}
 {% block title %}{{ product.name }}{% endblock %}
 {% block content %}
 {% set color_text = product.color_keys | map('color_label') | join(' / ') %}
@@ -89,8 +90,16 @@
       {% endif %}
     </div>
 
+    {# Form tambah ke keranjang (#35): ukuran (product_size_id) + jumlah. Tombol submit ada di baris tombol
+       (atribut form=), karena tombol ♡ punya form sendiri dan form tidak boleh bersarang.
+       Ukuran wajib dipilih divalidasi di server; detail.js hanya membantu (pesan + batas stepper). #}
+    {% set can_buy = not (g.user and g.user.is_admin) %}
+    <form id="tambah-keranjang" method="post" action="{{ url_for('cart.add') }}" class="flex flex-col gap-5" data-add-to-cart novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ url_for('shop.detail', slug=product.slug) }}">
+
     {# Ukuran: radio + label (tanpa JS tetap bisa dipilih); static/js/detail.js mengisi sisa stok & batas jumlah #}
-    <fieldset data-size-picker>
+    <fieldset id="pilih-ukuran" class="scroll-mt-28" data-size-picker>
       <div class="flex items-baseline justify-between mb-2">
         <legend class="text-sm font-semibold">Pilih ukuran (EU)</legend>
         {# TODO: halaman panduan ukuran / kebijakan belum ada #}
@@ -100,7 +109,7 @@
         {% for s in product.sizes %}
           {% set alt = s.size | size_us_uk %}{# perkiraan US/UK pria/unisex #}
           <label title="{{ 'Habis' if s.stock == 0 else 'Stok ' ~ s.stock }}{{ ' · ±US ' ~ alt.us ~ ' / UK ' ~ alt.uk if alt }}">
-            <input type="radio" name="size" value="{{ s.size }}" data-stock="{{ s.stock }}" class="peer sr-only"
+            <input type="radio" name="product_size_id" value="{{ s.id }}" data-size="{{ s.size }}" data-stock="{{ s.stock }}" class="peer sr-only"
                    {{ 'disabled' if s.stock == 0 }}>
             <span class="flex h-11 items-center justify-center rounded-lg border text-sm select-none
                          {{ 'border-neutral-200 text-neutral-300 line-through cursor-not-allowed' if s.stock == 0
@@ -116,23 +125,23 @@
     {# Jumlah (stepper). Tombol – + butuh JS; tanpa JS isian angka tetap bisa diketik. #}
     <div>
       <label for="qty" class="block text-sm font-semibold mb-2">Jumlah</label>
-      <div class="inline-flex items-center rounded-full border border-neutral-300" data-stepper>
-        <button type="button" class="w-10 h-10 rounded-full text-xl leading-none hover:bg-neutral-100 active:bg-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
-                data-step="-1" aria-label="Kurangi jumlah">&minus;</button>
-        <input id="qty" name="qty" type="number" inputmode="numeric" value="1" min="1"
-               max="{{ (product.sizes | map(attribute='stock') | list + [1]) | max }}"
-               class="w-12 text-center bg-transparent outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-               {{ 'disabled' if product.total_stock == 0 }}>
-        <button type="button" class="w-10 h-10 rounded-full text-xl leading-none hover:bg-neutral-100 active:bg-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
-                data-step="1" aria-label="Tambah jumlah">+</button>
-      </div>
+      {{ stepper(1, (product.sizes | map(attribute='stock') | list + [1]) | max, id="qty", disabled=(product.total_stock == 0)) }}
     </div>
+    </form>
 
     <div class="flex items-center gap-3">
-      {# Keranjang dibuat di #35 #}
-      <button disabled class="flex-1 h-[52px] rounded-full bg-neutral-200 text-neutral-500 font-display font-bold text-lg uppercase tracking-[0.9px] cursor-not-allowed">
-        Tambah ke keranjang (segera hadir)
-      </button>
+      {% if not can_buy %}
+        {# Admin tidak berbelanja: tombol keranjang & ♡ disembunyikan #}
+      {% elif product.total_stock == 0 %}
+        <button disabled class="flex-1 h-[52px] rounded-full bg-neutral-200 text-neutral-500 font-display font-bold text-lg uppercase tracking-[0.9px] cursor-not-allowed">
+          Stok habis
+        </button>
+      {% else %}
+        <button type="submit" form="tambah-keranjang"
+                class="flex-1 h-[52px] rounded-full bg-ink text-white font-display font-bold text-lg uppercase tracking-[0.9px] hover:bg-ink-muda active:bg-neutral-700 cursor-pointer transition-colors">
+          Tambah ke keranjang
+        </button>
+      {% endif %}
       {{ wishlist_button(product, "detail") }}
     </div>
     <p class="-mt-2 text-xs text-neutral-500">&check; Harga dihitung ulang saat checkout &middot; pembayaran diverifikasi admin</p>

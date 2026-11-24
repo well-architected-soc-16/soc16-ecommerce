@@ -22,7 +22,7 @@ Dev: WSL Ubuntu, database `ecommerce`, user `ecom` (bukan superuser).
 
 ```
 app.py            create_app(), filter template (rupiah, wib, tanggal, desimal, nama_singkat, inisial, color_label,
-                  color_hex, size_us_uk), global template wishlist_ids(), current_path(), url_with()
+                  color_hex, size_us_uk), global template wishlist_ids(), cart_count(), current_path(), url_with()
 config.py         Config dari .env (SECRET_KEY & DATABASE_URL wajib)
 extensions.py     db (dengan naming_convention), migrate, csrf
 audit.py          catat(event, user=None, email=None, **detail) → DB + file JSON (dibaca Wazuh)
@@ -30,9 +30,11 @@ utils.py          buat_slug, slug_unik, safe_next (cegah open redirect), current
 commands.py       flask buat-admin, flask seed, flask seed-ulasan
 models/           user, product (Brand, ProductGroup, Product, ProductColor, ProductSize, COLORS, convert_size), cart,
                   order (Order, OrderItem, Payment), review (Review, ReviewPhoto), wishlist (WishlistItem), audit_log
-routes/           auth (tanpa prefix), admin (/admin), shop (tanpa prefix, termasuk "/"), wishlist (/wishlist)
+routes/           auth (tanpa prefix), admin (/admin), shop (tanpa prefix, termasuk "/"), wishlist (/wishlist),
+                  cart (/keranjang)
 forms/            auth, admin
-templates/        Jinja2; komponen di templates/components/ (urutan daftar: sort_dropdown, bukan <select>)
+templates/        Jinja2; komponen di templates/components/ (urutan daftar: sort_dropdown, bukan <select>;
+                  jumlah: stepper)
 docs/             erd.md + erd.png (skema v3), fitur.md (13 fitur + tambahan + layar Figma), desain-*.md (spesifikasi Figma)
 ```
 
@@ -93,7 +95,14 @@ docs/             erd.md + erd.png (skema v3), fitur.md (13 fitur + tambahan + l
   `proof_mime` hasil deteksi `puremagic`, `proof_size` byte (CHECK > 0).
 - **Upload ulang bukti bayar** setelah ditolak: **update baris `payments` yang sama** (`order_id` UNIQUE), jangan buat baris baru.
 - **Redirect `next`** (login, toggle wishlist) hanya lewat `safe_next()`: path lokal saja, URL absolut / `//` / `\` ditolak.
-- **Wishlist**: hanya role customer (admin → 403 + `access_denied`, tombol ♡ disembunyikan); tamu → Masuk dengan `next`;
+- **Keranjang** (#35): hanya role customer (admin membuka `/keranjang` → dashboard admin + flash "Akun admin tidak memakai
+  keranjang."; admin mengirim POST → 403 + `access_denied`; tombol & ikon disembunyikan); semua query
+  `Cart.user_id == g.user.id` (item orang lain → 404); harga selalu `products.price` saat ini (keranjang tidak menyimpan
+  harga); badge header, judul "N produk", dan jumlah barang/subtotal **tidak menghitung produk yang disembunyikan**
+  (barisnya tetap tampil agar bisa dihapus); `quantity` bilangan bulat 1–stok; ukuran sama ditambah lagi → dijumlah, dibatasi stok; item bermasalah
+  (produk disembunyikan / stok habis / jumlah > stok) ditandai, **tidak** diubah diam-diam. Stok baru dikurangi saat checkout.
+- **Wishlist**: hanya role customer (admin membuka `/wishlist` → dashboard admin + flash; admin POST → 403 +
+  `access_denied`; tombol ♡ disembunyikan); tamu → Masuk dengan `next`;
   form kirim `aksi=simpan|hapus` eksplisit (klik ganda tidak membatalkan); produk tersembunyi → 404 & tidak ditampilkan.
 - **Input query** (filter, urutan, pencarian) divalidasi dengan whitelist; pencarian pakai `icontains(..., autoescape=True)`.
 - **Output** selalu lewat template Jinja (autoescape). Jangan return f-string berisi data user. Jangan pakai `|safe` untuk data user.
@@ -130,7 +139,8 @@ docs/             erd.md + erd.png (skema v3), fitur.md (13 fitur + tambahan + l
 
 - **Teks "Garansi tukar ukuran 3 hari"** (akordeon detail produk, kotak "Belanja aman" beranda) **belum disepakati tim**.
   Tampil sesuai Figma; ubah/hapus kalau kebijakan berbeda.
-- Teks akordeon "Pengiriman & ongkir" ("ongkos kirim ditampilkan saat checkout") baru benar setelah checkout (#35+).
+- Teks akordeon "Pengiriman & ongkir" ("ongkos kirim ditampilkan saat checkout") baru benar setelah checkout dibuat.
+- Tombol "Lanjut ke checkout" di keranjang masih nonaktif "(segera hadir)" sampai checkout dibuat.
 - Tautan "Panduan ukuran" dan halaman kebijakan masih `#`.
 - Foto produk & foto ulasan belum disajikan (butuh route penyaji file di luar web root); sementara kotak abu.
 

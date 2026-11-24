@@ -31,7 +31,7 @@ Tailwind config: `colors: { ink: { DEFAULT: '#1D2128', muda: '#353B46' } }`.
   2. **Kolom cari** (flex-1) — latar `#f5f5f5`, `rounded-full`; input padding 10px 20px, Barlow 16px, placeholder "Cari produk atau brand" warna `#a3a3a3`; tombol ikon search 24px (padding 10px 16px). Fokus: border `ink`.
   3. **Menu utama** — Barlow Condensed Bold 14px, UPPERCASE, tracking 0.7px, gap 20px: "Semua", "Brand ▾" (buka dropdown Brand), "Baru".
   4. **Ikon wishlist** ♡ (kotak 36px, ikon 24px). Tamu → ke Masuk. *(lihat Catatan A)*
-  5. **Ikon keranjang** (kotak 36px, ikon 26px). Customer/Admin: badge jumlah — lingkaran 18px, latar `ink`, border 1.5px putih, angka Barlow Bold 10px putih, posisi kiri 20px / atas −2px. Tamu → ke Masuk.
+  5. **Ikon keranjang** (kotak 36px, ikon 26px). Customer: badge jumlah baris produk (`cart_count()`, tidak tampil bila 0; admin: ikon disembunyikan, #35) — lingkaran 18px, latar `ink`, border 1.5px putih, angka Barlow Bold 10px putih, posisi kiri 20px / atas −2px. Tamu → ke Masuk.
   6. **Tamu:** "Masuk" (Barlow Medium 14px) + tombol "DAFTAR" (pill `ink`, padding 8px 20px, Barlow Condensed Bold 14px putih, tracking 0.7px).
      **Customer/Admin:** ikon user 28px + nama (Barlow Medium 14px), padding 4px, gap 8px → membuka Menu Akun.
 - HP: kolom cari turun ke baris kedua, menu utama jadi baris sendiri (seperti sekarang).
@@ -137,7 +137,7 @@ termurah / Harga termahal) dan bagian Ulasan detail produk (`?ulasan_urut=`: Ter
 - Nilai tetap divalidasi whitelist di server; nilai tak dikenal kembali ke default.
 
 ## 14. Lainnya (untuk fitur berikutnya, belum dipakai)
-`Jumlah (stepper)` 10:1079 · `Kotak Unggah` 10:1088 · `Foto (kosong)` 10:1055 · `Stat Card` 3:3 · `Menu Card` 3:12 — dikerjakan bersama fiturnya.
+`Jumlah (stepper)` 10:1079 → sudah dibuat: `components/stepper.html` (mode `client` di detail produk, mode `submit` di keranjang — tombol –/+ adalah tombol submit `aksi=kurang|tambah`, jalan tanpa JS) · `Kotak Unggah` 10:1088 · `Foto (kosong)` 10:1055 · `Stat Card` 3:3 · `Menu Card` 3:12 — dikerjakan bersama fiturnya.
 
 ## Ikon
 Ambil SVG dari Figma (URL sementara, berlaku 7 hari) dan simpan di `static/icons/`, atau pakai ikon garis setara (stroke 1.5–1.8, `currentColor`):
@@ -145,5 +145,5 @@ search, wishlist (hati garis & penuh), keranjang (tas), user, email, gembok, mat
 
 ## Catatan
 - **A. Wishlist** (ikon header, tombol di kartu, "Wishlist saya"): dibuat di #34, lihat `desain-detail-wishlist.md`.
-- Keranjang: badge jumlah baru berfungsi setelah fitur keranjang; untuk sekarang ikon tampil tanpa badge.
+- Keranjang: badge jumlah aktif sejak #35 (lihat `desain-keranjang.md`).
 - Teks UI bahasa Indonesia; aksi pengubah data tetap POST + CSRF.

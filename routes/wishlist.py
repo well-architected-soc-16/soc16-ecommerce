@@ -1,6 +1,7 @@
 """Wishlist customer (docs/desain-detail-wishlist.md, Figma 3.16/3.17).
 
-Aturan: hanya user login dengan role customer; semua query difilter user_id == g.user.id (IDOR);
+Aturan: hanya user login dengan role customer (admin membuka /wishlist -> dashboard admin + pesan;
+admin mengirim POST -> 403 + access_denied); semua query difilter user_id == g.user.id (IDOR);
 produk tersembunyi tidak bisa disimpan (404) dan tidak ditampilkan. Tidak dicatat ke audit log
 (bukan aksi sensitif), kecuali admin yang mencoba (access_denied).
 """
@@ -86,7 +87,10 @@ def toggle(product_id):
 @wishlist_bp.route("/wishlist")
 @login_required
 def index():
-    _customer_only()
+    # Admin membuka halaman: arahkan ke dashboard (bukan 403). Aksi POST admin tetap 403 (_customer_only).
+    if g.user.is_admin:
+        flash("Akun admin tidak memakai wishlist.", "info")
+        return redirect(url_for("admin.dashboard"))
 
     sort = request.args.get("urut", "terbaru")
     if sort not in SORTS:

@@ -1,0 +1,27 @@
+{# Stepper jumlah pil "– 1 +" — docs/desain-komponen.md §14 (Jumlah, 10:1079).
+   Pakai:  {% from "components/stepper.html" import stepper %}
+   mode="client" (detail produk): tombol type=button, diatur static/js/detail.js; tanpa JS angka tetap bisa diketik.
+   mode="submit" (keranjang): tombol – / + mengirim form induk dengan aksi=kurang|tambah (server menghitung
+     jumlah baru dari DB), jadi jalan tanpa JS; isian angka dikirim dengan aksi=set (static/js/cart.js atau Enter).
+   value/max = jumlah sekarang & batas atas (stok); disabled = seluruh stepper nonaktif. #}
+{% macro stepper(value=1, max=1, id=none, name="quantity", mode="client", disabled=false, label="Jumlah") -%}
+{% set btn = "w-10 h-10 shrink-0 rounded-full text-xl leading-none flex items-center justify-center hover:bg-neutral-100 active:bg-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed" %}
+<div class="inline-flex items-center rounded-full border border-neutral-300 bg-white" data-stepper{{ ' data-stepper-submit' if mode == 'submit' }}>
+  {% if mode == "submit" %}
+    <button type="submit" name="aksi" value="kurang" class="{{ btn }}" aria-label="Kurangi {{ label | lower }}"
+            {{ 'disabled' if disabled or value <= 1 }}>&minus;</button>
+  {% else %}
+    <button type="button" class="{{ btn }}" data-step="-1" aria-label="Kurangi {{ label | lower }}">&minus;</button>
+  {% endif %}
+  <input {% if id %}id="{{ id }}"{% endif %} name="{{ name }}" type="number" inputmode="numeric" value="{{ value }}" min="1" max="{{ [max, 1] | max }}"
+         aria-label="{{ label }}"
+         class="w-12 text-center bg-transparent outline-none disabled:text-neutral-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+         {{ 'disabled' if disabled }}>
+  {% if mode == "submit" %}
+    <button type="submit" name="aksi" value="tambah" class="{{ btn }}" aria-label="Tambah {{ label | lower }}"
+            {{ 'disabled' if disabled or value >= max }}>+</button>
+  {% else %}
+    <button type="button" class="{{ btn }}" data-step="1" aria-label="Tambah {{ label | lower }}">+</button>
+  {% endif %}
+</div>
+{%- endmacro %}
